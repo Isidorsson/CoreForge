@@ -103,16 +103,21 @@ export function SplitDonut({ data, height = 200 }: { data: metrics.Slice[]; heig
   const total = data.reduce((s, d) => s + d.count, 0)
   return (
     <div className="flex items-center gap-3">
-      <ResponsiveContainer width="55%" height={height}>
-        <PieChart>
-          <Pie data={data} dataKey="count" nameKey="label" innerRadius="58%" outerRadius="86%" paddingAngle={2} stroke="var(--color-card)" strokeWidth={2}>
-            {data.map((_, i) => (
-              <Cell key={i} fill={shades[i % shades.length]} />
-            ))}
-          </Pie>
-          <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => v.toLocaleString()} />
-        </PieChart>
-      </ResponsiveContainer>
+      <div className="relative" style={{ width: "55%" }}>
+        <ResponsiveContainer width="100%" height={height}>
+          <PieChart>
+            <Pie data={data} dataKey="count" nameKey="label" innerRadius="58%" outerRadius="86%" paddingAngle={2} stroke="var(--color-card)" strokeWidth={2}>
+              {data.map((_, i) => (
+                <Cell key={i} fill={shades[i % shades.length]} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center leading-none">
+          <span className="text-lg font-semibold tabular-nums">{total.toLocaleString()}</span>
+          <span className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">total</span>
+        </div>
+      </div>
       <ul className="flex-1 space-y-1.5">
         {data.map((d, i) => {
           const pct = total ? Math.round((d.count / total) * 100) : 0

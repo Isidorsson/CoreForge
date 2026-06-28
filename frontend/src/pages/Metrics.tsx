@@ -79,13 +79,15 @@ function CharBoard({
       <ol className="divide-y divide-border/60">
         {rows.length === 0 && <li className="px-3 py-6 text-center text-xs text-muted-foreground">No data</li>}
         {rows.map((r, i) => (
-          <li key={`${r.name}-${i}`} className="flex items-center gap-3 px-3 py-1.5 text-xs">
+          <li key={`${r.name}-${i}`} className="flex items-center gap-2.5 px-3 py-1.5 text-xs">
             <span className="w-4 shrink-0 text-right tabular-nums text-muted-foreground">{i + 1}</span>
-            <span className="min-w-0 flex-1 truncate font-medium">{r.name}</span>
-            <span className="hidden shrink-0 text-muted-foreground sm:block">
-              {r.race} {r.class} · {r.level}
-            </span>
-            <span className="w-20 shrink-0 text-right font-medium tabular-nums">{render(r)}</span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium leading-tight">{r.name}</p>
+              <p className="truncate text-[11px] leading-tight text-muted-foreground">
+                {r.race} {r.class} · {r.level}
+              </p>
+            </div>
+            <span className="shrink-0 whitespace-nowrap text-right font-medium tabular-nums">{render(r)}</span>
           </li>
         ))}
       </ol>
@@ -103,11 +105,13 @@ function GuildBoard({ rows }: { rows: metrics.GuildRow[] }) {
       <ol className="divide-y divide-border/60">
         {rows.length === 0 && <li className="px-3 py-6 text-center text-xs text-muted-foreground">No guilds</li>}
         {rows.map((g, i) => (
-          <li key={`${g.name}-${i}`} className="flex items-center gap-3 px-3 py-1.5 text-xs">
+          <li key={`${g.name}-${i}`} className="flex items-center gap-2.5 px-3 py-1.5 text-xs">
             <span className="w-4 shrink-0 text-right tabular-nums text-muted-foreground">{i + 1}</span>
-            <span className="min-w-0 flex-1 truncate font-medium">{g.name}</span>
-            <span className="hidden shrink-0 truncate text-muted-foreground sm:block">{g.leader || "—"}</span>
-            <span className="w-16 shrink-0 text-right font-medium tabular-nums">{g.members.toLocaleString()}</span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium leading-tight">{g.name}</p>
+              <p className="truncate text-[11px] leading-tight text-muted-foreground">{g.leader || "—"}</p>
+            </div>
+            <span className="shrink-0 whitespace-nowrap text-right font-medium tabular-nums">{g.members.toLocaleString()}</span>
           </li>
         ))}
       </ol>
