@@ -8,6 +8,7 @@ import (
 	"CoreForge/internal/events"
 	"CoreForge/internal/files"
 	"CoreForge/internal/logs"
+	"CoreForge/internal/metrics"
 	"CoreForge/internal/process"
 	"CoreForge/internal/profile"
 	"CoreForge/internal/settings"
@@ -26,6 +27,7 @@ type App struct {
 	Logs    *logs.Manager
 	Config  *config.Manager
 	Files   *files.Manager
+	Metrics *metrics.Manager
 }
 
 // NewApp wires the managers with a switchable emitter (the real Wails emitter is
@@ -44,6 +46,7 @@ func NewApp() *App {
 		Logs:    logs.NewManager(emit, s.LogTailLines),
 		Config:  config.NewManager(),
 		Files:   files.NewManager(emit),
+		Metrics: metrics.NewManager(),
 	}
 }
 
@@ -77,6 +80,8 @@ func (a *App) rebind() {
 	a.Logs.Rebind(resolved, s.LogTailLines)
 	a.Config.Rebind(resolved)
 	a.Files.Rebind(resolved)
+	a.Metrics.Rebind(resolved)
+	a.applyMetricsOverride()
 }
 
 // --- state exposed to the frontend ---

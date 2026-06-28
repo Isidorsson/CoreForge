@@ -46,6 +46,14 @@ export function GetBacklog(arg1) {
   return window['go']['main']['App']['GetBacklog'](arg1);
 }
 
+export function GetMetricsDBInfo() {
+  return window['go']['main']['App']['GetMetricsDBInfo']();
+}
+
+export function GetServerMetrics() {
+  return window['go']['main']['App']['GetServerMetrics']();
+}
+
 export function GetState() {
   return window['go']['main']['App']['GetState']();
 }
@@ -110,6 +118,10 @@ export function SetInstallDir(arg1, arg2) {
   return window['go']['main']['App']['SetInstallDir'](arg1, arg2);
 }
 
+export function SetMetricsDBOverride(arg1) {
+  return window['go']['main']['App']['SetMetricsDBOverride'](arg1);
+}
+
 export function StartAll() {
   return window['go']['main']['App']['StartAll']();
 }
@@ -148,6 +160,10 @@ export function StopLogTail(arg1) {
 
 export function StopWorld(arg1) {
   return window['go']['main']['App']['StopWorld'](arg1);
+}
+
+export function TestMetricsConnection() {
+  return window['go']['main']['App']['TestMetricsConnection']();
 }
 
 export function UpdateOptions(arg1, arg2, arg3) {

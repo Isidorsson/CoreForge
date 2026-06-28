@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { GetState, GetStatus } from "../../wailsjs/go/main/App"
+import { GetState, GetStatus, GetServerMetrics } from "../../wailsjs/go/main/App"
 import { useWailsEvent } from "./useWailsEvent"
 import { toast } from "@/lib/toast"
 import { errorMessage } from "@/lib/format"
@@ -14,6 +14,7 @@ export const qk = {
   configBackups: (id: string) => ["configBackups", id] as const,
   files: (rel: string) => ["files", rel] as const,
   disk: ["disk"] as const,
+  metrics: ["metrics"] as const,
 }
 
 /** App bootstrap state (active core, installs, options). Refetches on app:state. */
@@ -32,6 +33,12 @@ export function useStatus() {
     qc.setQueryData(qk.status, s)
   })
   return useQuery({ queryKey: qk.status, queryFn: GetStatus, refetchInterval: 4000 })
+}
+
+/** Server metrics snapshot. Heavy query — manual refetch, no auto-retry so a
+ *  DB connection error surfaces immediately. */
+export function useMetrics() {
+  return useQuery({ queryKey: qk.metrics, queryFn: GetServerMetrics, staleTime: 30_000, retry: false })
 }
 
 /** Surface backend error events as toasts (registered once at the shell). */

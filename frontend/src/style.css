@@ -214,6 +214,18 @@
   animation: blink 1.1s steps(1, end) infinite;
 }
 
+/* Dot-matrix loaders — opacity pulse drives the "quantum dot" shimmer; a
+ * staggered animation-delay around a ring/bar reads as rotation/sweep. */
+@keyframes dot-pulse {
+  0%,
+  100% {
+    opacity: var(--dot-min, 0.16);
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

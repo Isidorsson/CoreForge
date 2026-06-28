@@ -6,6 +6,8 @@ import {main} from '../models';
 import {process} from '../models';
 import {config} from '../models';
 import {logs} from '../models';
+import {metrics} from '../models';
+import {settings} from '../models';
 
 export function ArchiveLogs(arg1:Array<string>):Promise<string>;
 
@@ -28,6 +30,10 @@ export function DiskUsage():Promise<files.UsageReport>;
 export function GetActiveProfile():Promise<profile.ResolvedProfile>;
 
 export function GetBacklog(arg1:string):Promise<Array<string>>;
+
+export function GetMetricsDBInfo():Promise<main.MetricsDBInfo>;
+
+export function GetServerMetrics():Promise<metrics.Metrics>;
 
 export function GetState():Promise<main.AppState>;
 
@@ -61,6 +67,8 @@ export function SetDockerOverride(arg1:string,arg2:string,arg3:string):Promise<v
 
 export function SetInstallDir(arg1:string,arg2:string):Promise<void>;
 
+export function SetMetricsDBOverride(arg1:settings.MetricsDBOverride):Promise<void>;
+
 export function StartAll():Promise<void>;
 
 export function StartAuth():Promise<void>;
@@ -80,5 +88,7 @@ export function StopDB():Promise<void>;
 export function StopLogTail(arg1:string):Promise<void>;
 
 export function StopWorld(arg1:boolean):Promise<void>;
+
+export function TestMetricsConnection():Promise<main.MetricsDBInfo>;
 
 export function UpdateOptions(arg1:number,arg2:boolean,arg3:boolean):Promise<void>;

@@ -126,6 +126,107 @@ function install() {
     ],
   }
 
+  const slice = (label: string, count: number) => ({ key: label, label, count })
+  const dayISO = (daysAgo: number) => new Date(now - daysAgo * 86_400_000).toISOString().slice(0, 10)
+  const char = (name: string, race: string, klass: string, level: number, value: number) => ({
+    name, race, class: klass, level, value,
+  })
+
+  const metrics = {
+    generatedAt: iso(0),
+    overview: {
+      accounts: 1284,
+      activeAccounts: 342,
+      characters: 4173,
+      onlineNow: 37,
+      guilds: 86,
+      bannedAccounts: 14,
+      maxLevelChars: 512,
+      avgLevel: 41.7,
+    },
+    races: [
+      slice("Human", 980), slice("Blood Elf", 720), slice("Night Elf", 540), slice("Orc", 430),
+      slice("Undead", 410), slice("Tauren", 300), slice("Troll", 280), slice("Draenei", 250),
+      slice("Dwarf", 190), slice("Gnome", 173),
+    ],
+    classes: [
+      slice("Death Knight", 640), slice("Paladin", 560), slice("Warrior", 520), slice("Mage", 470),
+      slice("Hunter", 460), slice("Priest", 400), slice("Warlock", 360), slice("Rogue", 340),
+      slice("Druid", 290), slice("Shaman", 233),
+    ],
+    factions: [slice("Alliance", 2133), slice("Horde", 2040)],
+    genders: [slice("Male", 2300), slice("Female", 1873)],
+    levels: [
+      { label: "1–9", min: 1, max: 9, count: 430 },
+      { label: "10–19", min: 10, max: 19, count: 380 },
+      { label: "20–29", min: 20, max: 29, count: 340 },
+      { label: "30–39", min: 30, max: 39, count: 300 },
+      { label: "40–49", min: 40, max: 49, count: 280 },
+      { label: "50–59", min: 50, max: 59, count: 260 },
+      { label: "60", min: 60, max: 60, count: 210 },
+      { label: "61–69", min: 61, max: 69, count: 340 },
+      { label: "70", min: 70, max: 70, count: 520 },
+      { label: "71–79", min: 71, max: 79, count: 601 },
+      { label: "80", min: 80, max: 80, count: 512 },
+    ],
+    economy: {
+      totalCopper: 92_473_100_000,
+      avgGold: 2216.4,
+      richest: [
+        char("Goldmaxxer", "Goblin", "Rogue", 80, 214_748_360),
+        char("Bankalt", "Blood Elf", "Mage", 80, 198_220_010),
+        char("Tycoonia", "Gnome", "Warlock", 80, 176_540_900),
+        char("Auctionz", "Human", "Paladin", 80, 154_330_220),
+        char("Hoarder", "Undead", "Priest", 79, 132_009_870),
+        char("Coinflip", "Orc", "Hunter", 80, 119_870_500),
+        char("Smelter", "Dwarf", "Warrior", 77, 98_220_340),
+        char("Flipper", "Troll", "Shaman", 80, 87_650_120),
+      ],
+    },
+    topPlaytime: [
+      char("Nolifeking", "Human", "Druid", 80, 8_640_000),
+      char("Grindset", "Orc", "Death Knight", 80, 7_920_400),
+      char("Marathon", "Night Elf", "Hunter", 80, 7_110_900),
+      char("Everquest", "Undead", "Warlock", 80, 6_840_300),
+      char("Sleepless", "Tauren", "Shaman", 80, 6_120_700),
+      char("Veteran", "Draenei", "Paladin", 80, 5_980_100),
+      char("Persistent", "Blood Elf", "Mage", 79, 5_220_440),
+      char("Dedicated", "Gnome", "Rogue", 80, 4_900_000),
+    ],
+    topLevel: [
+      char("Firstto80", "Blood Elf", "Paladin", 80, 80),
+      char("Speedrun", "Human", "Mage", 80, 80),
+      char("Worldfirst", "Orc", "Warrior", 80, 80),
+      char("Hardcore", "Night Elf", "Druid", 80, 80),
+      char("Climber", "Undead", "Priest", 79, 79),
+      char("Almostthere", "Tauren", "Hunter", 79, 79),
+      char("Pushing", "Troll", "Shaman", 78, 78),
+      char("Leveling", "Draenei", "Paladin", 77, 77),
+    ],
+    topGuilds: [
+      { name: "Eternal Vanguard", members: 312, leader: "Highlord" },
+      { name: "Crimson Covenant", members: 268, leader: "Bloodqueen" },
+      { name: "Northwatch", members: 221, leader: "Captainmarsh" },
+      { name: "Shadow Syndicate", members: 198, leader: "Nightblade" },
+      { name: "Ironforge Brigade", members: 176, leader: "Anvilbeard" },
+      { name: "Emerald Circle", members: 154, leader: "Thornwarden" },
+      { name: "Sunfury Remnant", members: 132, leader: "Pyromancer" },
+      { name: "Frostwolf Legacy", members: 119, leader: "Wolfmother" },
+    ],
+    signups: Array.from({ length: 30 }, (_, i) => ({ date: dayISO(29 - i), count: 6 + ((i * 7) % 19) })),
+  }
+
+  const dbInfo = {
+    host: "127.0.0.1",
+    port: "3306",
+    user: "trinity",
+    authDb: "auth",
+    worldDb: "world",
+    charDb: "characters",
+    source: "config",
+    hasPass: true,
+  }
+
   const bindings: Bindings = {
     GetState: async () => state,
     GetStatus: async () => status,
@@ -142,6 +243,10 @@ function install() {
     DiskUsage: async () => disk,
     CrashesPreview: async () => ({ files: [], count: 0, bytes: 0 }),
     BrowseForDirectory: async () => "",
+    GetServerMetrics: async () => metrics,
+    GetMetricsDBInfo: async () => dbInfo,
+    TestMetricsConnection: async () => dbInfo,
+    SetMetricsDBOverride: async () => undefined,
   }
 
   const noop = async () => undefined
@@ -154,11 +259,17 @@ function install() {
   }
 
   const runtime: Record<string, Fn> = {
+    // The wailsjs runtime wrapper's EventsOn/EventsOnce delegate to
+    // EventsOnMultiple, so it must exist or every useWailsEvent crashes.
+    EventsOnMultiple: () => () => undefined,
     EventsOn: () => () => undefined,
     EventsOnce: () => () => undefined,
     EventsOff: () => undefined,
+    EventsOffAll: () => undefined,
     EventsEmit: () => undefined,
     LogPrint: () => undefined,
+    LogError: () => undefined,
+    LogFatal: () => undefined,
     WindowSetTitle: () => undefined,
   }
   w.runtime = runtime

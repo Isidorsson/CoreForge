@@ -3,6 +3,7 @@ import { NavLink, Outlet } from "react-router-dom"
 import {
   Flame,
   LayoutDashboard,
+  BarChart3,
   ScrollText,
   FileCog,
   FolderTree,
@@ -21,6 +22,7 @@ import type { main } from "../../../wailsjs/go/models"
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/metrics", label: "Metrics", icon: BarChart3, end: false },
   { to: "/logs", label: "Logs", icon: ScrollText, end: false },
   { to: "/config", label: "Config", icon: FileCog, end: false },
   { to: "/files", label: "Files", icon: FolderTree, end: false },

@@ -29,6 +29,20 @@ type CoreInstall struct {
 	DockerContainerOverride string           `json:"dockerContainerOverride,omitempty"`
 }
 
+// MetricsDBOverride holds manual MySQL credentials for the metrics page, used
+// when auto-discovery from worldserver.conf is wrong (e.g. a remote DB host).
+// Stored as plaintext, like the worldserver.conf it mirrors — this is a
+// local-only desktop tool with no network surface.
+type MetricsDBOverride struct {
+	Host    string `json:"host"`
+	Port    string `json:"port"`
+	User    string `json:"user"`
+	Pass    string `json:"pass"`
+	AuthDB  string `json:"authDb"`
+	WorldDB string `json:"worldDb"`
+	CharDB  string `json:"charDb"`
+}
+
 // Settings is the pure, serializable user configuration.
 type Settings struct {
 	ActiveCore         profile.CoreType                 `json:"activeCore"`
@@ -36,6 +50,7 @@ type Settings struct {
 	LogTailLines       int                              `json:"logTailLines"`
 	ConfirmDestructive bool                             `json:"confirmDestructive"`
 	StopServersOnExit  bool                             `json:"stopServersOnExit"`
+	MetricsDB          *MetricsDBOverride               `json:"metricsDb,omitempty"`
 }
 
 // Defaults returns a fresh Settings with sensible defaults.

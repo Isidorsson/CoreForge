@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import { useNavigate } from "react-router-dom"
 import {
   LayoutDashboard,
+  BarChart3,
   ScrollText,
   FileCog,
   FolderTree,
@@ -73,6 +74,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const commands = React.useMemo<Command[]>(() => {
     const nav: Command[] = [
       { id: "nav-dash", label: "Dashboard", group: "Go to", icon: LayoutDashboard, run: go("/") },
+      { id: "nav-metrics", label: "Metrics", group: "Go to", icon: BarChart3, run: go("/metrics") },
       { id: "nav-logs", label: "Logs", group: "Go to", icon: ScrollText, run: go("/logs") },
       { id: "nav-config", label: "Config", group: "Go to", icon: FileCog, run: go("/config") },
       { id: "nav-files", label: "Files", group: "Go to", icon: FolderTree, run: go("/files") },

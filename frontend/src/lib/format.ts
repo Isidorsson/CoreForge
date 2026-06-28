@@ -48,6 +48,30 @@ export function formatUptime(startedAtMs: number): string {
   return `${sec}s`
 }
 
+/** Gold amount from a raw copper value ("21,474g"). Sub-gold is dropped — the
+ *  metrics page deals in totals where copper/silver precision is just noise. */
+export function formatGold(copper: number): string {
+  if (!copper || copper < 0) return "0g"
+  return `${Math.floor(copper / 10000).toLocaleString()}g`
+}
+
+/** /played duration from a seconds count ("12d 4h", "3h 20m", "45m"). */
+export function formatPlaytime(seconds: number): string {
+  if (!seconds || seconds < 0) return "—"
+  const d = Math.floor(seconds / 86400)
+  const h = Math.floor((seconds % 86400) / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (d > 0) return `${d}d ${h}h`
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
+}
+
+/** Compact count for big KPI numbers (1.2k, 3.4M); small values pass through. */
+export function formatCompact(n: number): string {
+  if (Math.abs(n) < 1000) return n.toLocaleString()
+  return Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(n)
+}
+
 /** Normalize unknown thrown values (Wails rejects with strings) to a message. */
 export function errorMessage(err: unknown): string {
   if (typeof err === "string") return err
