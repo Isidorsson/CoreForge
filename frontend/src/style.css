@@ -226,6 +226,28 @@
   }
 }
 
+/* Whole-element rotation for the comet spinner and indeterminate ring sweep. */
+@keyframes dot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* LED bloom for CSS dots: stacked halos, widest+faintest last. Element opacity
+ * fades the shadow with the dot, so pulsing dims the glow too. */
+.dot-glow {
+  box-shadow:
+    0 0 1px color-mix(in oklch, currentColor 80%, transparent),
+    0 0 4px color-mix(in oklch, currentColor 45%, transparent),
+    0 0 9px color-mix(in oklch, currentColor 22%, transparent);
+}
+.dot-glow-sm {
+  box-shadow:
+    0 0 1px color-mix(in oklch, currentColor 75%, transparent),
+    0 0 3px color-mix(in oklch, currentColor 38%, transparent),
+    0 0 6px color-mix(in oklch, currentColor 18%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

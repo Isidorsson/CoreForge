@@ -51,7 +51,7 @@ export function Loaders() {
         </Cell>
 
         <Cell label="DotRing — compact + sublabel">
-          <DotRing progress={pct} size={96} showPercent={false} label="DB" sublabel="updating" count={48} />
+          <DotRing progress={pct} size={104} showPercent={false} label="DB" sublabel="updating" bands={2} />
         </Cell>
 
         <Cell label="DotBar — determinate">
