@@ -1,0 +1,22 @@
+# Wails build output
+build/bin
+
+# Node / Vite
+node_modules
+frontend/dist
+frontend/.vite
+
+# Go
+*.exe
+*.test
+*.out
+
+# App data / scratch
+*.tmp
+settings.corrupt
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
