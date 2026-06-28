@@ -1,22 +1,43 @@
-# Wails build output
+# --- Wails / build output ---
 build/bin
+# wails frontend build-cache hash
+frontend/package.json.md5
+*.exe
+*.dll
+*.so
+*.dylib
 
-# Node / Vite
+# --- Node / Vite ---
 node_modules
 frontend/dist
 frontend/.vite
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Go
-*.exe
+# --- Go ---
 *.test
 *.out
+coverage.*
+vendor/
 
-# App data / scratch
+# --- Secrets / local config (never push) ---
+.env
+.env.*
+*.local
+*.pem
+*.key
+secrets.json
+
+# --- App data / scratch ---
 *.tmp
 settings.corrupt
 
-# Editor / OS
+# --- Editor / OS ---
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
+*.swp
