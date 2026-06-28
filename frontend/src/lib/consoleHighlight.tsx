@@ -9,28 +9,30 @@ import * as React from "react"
 type Token = { name: string; re: string; cls: string }
 
 // Order matters: more specific patterns first (timestamps/IPs before bare numbers).
+// Monochrome scheme: neutral foreground shades for structure; color reserved for
+// ERROR (danger) and WARN (warning) levels only, so the console reads black-and-white.
 const TOKENS: Token[] = [
   {
     name: "time",
     re: String.raw`\b\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}:\d{2})?\b|\b\d{1,2}:\d{2}:\d{2}\b`,
-    cls: "text-zinc-500",
+    cls: "text-muted-foreground",
   },
   { name: "level", re: String.raw`\b(?:FATAL|ERROR|WARN(?:ING)?|INFO|NOTICE|DEBUG|TRACE)\b`, cls: "" },
-  { name: "ip", re: String.raw`\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b`, cls: "text-cyan-400" },
-  { name: "str", re: String.raw`"[^"]*"|'[^']*'`, cls: "text-emerald-400" },
-  { name: "hex", re: String.raw`\b0x[0-9a-fA-F]+\b`, cls: "text-fuchsia-400" },
-  { name: "url", re: String.raw`\b[\w.-]+\.(?:conf|log|sql|dll|exe|lua|dist)\b`, cls: "text-sky-400" },
-  { name: "num", re: String.raw`\b\d+(?:\.\d+)?\b`, cls: "text-amber-400" },
+  { name: "ip", re: String.raw`\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b`, cls: "text-foreground/60" },
+  { name: "str", re: String.raw`"[^"]*"|'[^']*'`, cls: "text-foreground/75" },
+  { name: "hex", re: String.raw`\b0x[0-9a-fA-F]+\b`, cls: "text-muted-foreground" },
+  { name: "url", re: String.raw`\b[\w.-]+\.(?:conf|log|sql|dll|exe|lua|dist)\b`, cls: "text-foreground/70" },
+  { name: "num", re: String.raw`\b\d+(?:\.\d+)?\b`, cls: "text-foreground/55" },
 ]
 
 const COMBINED = new RegExp(TOKENS.map((t) => `(?<${t.name}>${t.re})`).join("|"), "g")
 
 function levelClass(word: string): string {
   const u = word.toUpperCase()
-  if (u === "ERROR" || u === "FATAL") return "text-red-400 font-semibold"
-  if (u.startsWith("WARN")) return "text-amber-400 font-semibold"
-  if (u === "INFO" || u === "NOTICE") return "text-sky-400 font-medium"
-  return "text-zinc-500"
+  if (u === "ERROR" || u === "FATAL") return "text-danger font-semibold"
+  if (u.startsWith("WARN")) return "text-warning font-semibold"
+  if (u === "INFO" || u === "NOTICE") return "text-foreground/80 font-medium"
+  return "text-muted-foreground"
 }
 
 /** Returns the line split into colored spans + plain text. */

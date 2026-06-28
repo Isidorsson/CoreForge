@@ -47,12 +47,12 @@ export function ConsolePane({ target, className }: { target: "auth" | "world"; c
       ref={boxRef}
       onScroll={onScroll}
       className={cn(
-        "h-full overflow-auto rounded-md border border-border bg-[oklch(0.13_0.012_252)] p-3 font-mono text-xs leading-relaxed text-foreground/90",
+        "h-full overflow-auto bg-console p-3 font-mono text-xs leading-relaxed text-foreground/90",
         className,
       )}
     >
       {lines.length === 0 ? (
-        <p className="text-muted-foreground">No output yet — start the server to stream its console here.</p>
+        <p className="font-sans text-muted-foreground">No output yet — start the server to stream its console here.</p>
       ) : (
         lines.map((l, i) => (
           <div key={i} className="whitespace-pre-wrap break-all">

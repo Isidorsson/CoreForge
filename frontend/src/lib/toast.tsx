@@ -60,13 +60,13 @@ const accent = {
 export function Toaster() {
   const toasts = useToasts()
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2">
+    <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2">
       {toasts.map((t) => {
         const Icon = icons[t.variant]
         return (
           <div
             key={t.id}
-            className="animate-toast-in pointer-events-auto flex items-start gap-3 rounded-lg border border-border bg-popover/95 p-3 shadow-lg backdrop-blur"
+            className="animate-toast-in pointer-events-auto flex items-start gap-3 rounded-lg border border-border-strong bg-popover p-3 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.7)]"
           >
             <Icon className={cn("mt-0.5 size-4 shrink-0", accent[t.variant])} />
             <div className="min-w-0 flex-1">

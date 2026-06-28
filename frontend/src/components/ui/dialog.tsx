@@ -35,14 +35,14 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         className={cn(
-          "animate-dialog-in relative z-10 w-full max-w-lg rounded-xl border border-border bg-card p-5 shadow-xl",
+          "animate-dialog-in relative z-10 w-full max-w-lg rounded-lg border border-border-strong bg-card p-5 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)]",
           className,
         )}
       >
         {(title || description) && (
           <div className="mb-4 pr-6">
-            {title && <h2 className="text-base font-semibold">{title}</h2>}
-            {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+            {title && <h2 className="text-base font-semibold tracking-tight">{title}</h2>}
+            {description && <p className="mt-1 font-sans text-sm leading-relaxed text-muted-foreground">{description}</p>}
           </div>
         )}
         <button
@@ -83,7 +83,7 @@ export function ConfirmDialog({
 }) {
   return (
     <Modal open={open} onClose={onClose} title={title}>
-      {description && <div className="text-sm text-muted-foreground">{description}</div>}
+      {description && <div className="font-sans text-sm leading-relaxed text-muted-foreground">{description}</div>}
       <div className="mt-5 flex justify-end gap-2">
         <Button variant="ghost" onClick={onClose} disabled={loading}>
           {cancelLabel}

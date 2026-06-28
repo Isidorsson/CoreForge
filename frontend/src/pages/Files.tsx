@@ -83,7 +83,7 @@ function DiskUsageCard() {
                     <span className="text-muted-foreground">{formatBytes(bucket.bytes)}</span>
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary/40" style={{ width: `${pct}%` }} />
+                    <div className="h-full rounded-full bg-primary/70" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               )
@@ -165,7 +165,7 @@ function FileRow({ entry, onDescend, onBackup, onDelete }: {
 }) {
   const Icon = entry.isDir ? Folder : File
   return (
-    <div className="group flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-accent">
+    <div className="group flex items-center gap-3 rounded-md px-3 py-1.5 hover:bg-accent">
       <Icon className={cn("size-4 shrink-0", entry.isDir ? "text-primary" : "text-muted-foreground")} />
       <button
         onClick={() => entry.isDir && onDescend(entry)}
@@ -174,11 +174,11 @@ function FileRow({ entry, onDescend, onBackup, onDelete }: {
       >
         {entry.name}
       </button>
-      <span className="w-20 shrink-0 text-right text-xs text-muted-foreground">
+      <span className="w-20 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
         {entry.isDir ? "—" : formatBytes(entry.size)}
       </span>
-      <span className="w-20 shrink-0 text-right text-xs text-muted-foreground">{formatRelative(entry.modified)}</span>
-      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+      <span className="w-24 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{formatRelative(entry.modified)}</span>
+      <div className="flex w-[64px] shrink-0 items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
         {entry.isDir && (
           <Button size="icon" variant="ghost" className="size-7" title="Back up folder" onClick={() => onBackup(entry)}>
             <Archive className="size-3.5" />
@@ -226,22 +226,31 @@ function FileBrowser({ rel, onNavigate }: { rel: string; onNavigate: (rel: strin
         <Breadcrumb rel={rel} onNavigate={onNavigate} />
         {browse.isFetching && <Spinner className="size-3.5" />}
       </CardHeader>
-      <CardContent className="min-h-0 flex-1 overflow-auto">
-        {entries.length === 0 ? (
-          <EmptyState icon={Folder} title="Empty folder" hint="Nothing to show in this directory." />
-        ) : (
-          <div className="space-y-0.5">
-            {entries.map((entry) => (
-              <FileRow
-                key={entry.relPath}
-                entry={entry}
-                onDescend={(e) => onNavigate(e.relPath)}
-                onBackup={backup}
-                onDelete={setPendingDelete}
-              />
-            ))}
-          </div>
-        )}
+      <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+        <div className="flex items-center gap-3 border-y border-border px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          <span className="size-4 shrink-0" />
+          <span className="flex-1">Name</span>
+          <span className="w-20 shrink-0 text-right">Size</span>
+          <span className="w-24 shrink-0 text-right">Modified</span>
+          <span className="w-[64px] shrink-0" />
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto p-1.5">
+          {entries.length === 0 ? (
+            <EmptyState icon={Folder} title="Empty folder" hint="Nothing to show in this directory." />
+          ) : (
+            <div className="space-y-0.5">
+              {entries.map((entry) => (
+                <FileRow
+                  key={entry.relPath}
+                  entry={entry}
+                  onDescend={(e) => onNavigate(e.relPath)}
+                  onBackup={backup}
+                  onDelete={setPendingDelete}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </CardContent>
       <ConfirmDialog
         open={!!pendingDelete}

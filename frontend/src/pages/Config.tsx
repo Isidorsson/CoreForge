@@ -174,6 +174,18 @@ function ConfigEditor({ file }: { file: config.ConfigFile }) {
     onError: (err) => toast({ variant: "error", title: "Save config", description: errorMessage(err) }),
   })
 
+  // ⌘S / Ctrl+S saves when there are unsaved edits.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault()
+        if (dirty && !save.isPending) save.mutate()
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [dirty, save])
+
   useEffect(() => {
     const q = query.trim()
     if (!q) {
@@ -198,7 +210,7 @@ function ConfigEditor({ file }: { file: config.ConfigFile }) {
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-sm font-medium">{file.name}</span>
           {kindBadge(file.kind)}
-          {dirty && <span className="text-xs text-warning">unsaved</span>}
+          {dirty && <Badge variant="warning">unsaved</Badge>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button size="sm" loading={save.isPending} disabled={!dirty} onClick={() => save.mutate()}>
@@ -224,7 +236,7 @@ function ConfigEditor({ file }: { file: config.ConfigFile }) {
       </div>
 
       {matches && (
-        <div className="flex max-h-40 flex-col gap-0.5 overflow-auto rounded-md border border-border bg-muted/40 p-2">
+        <div className="flex max-h-40 flex-col gap-0.5 overflow-auto rounded-md border border-border bg-console p-2">
           <div className="px-1 pb-1 text-xs text-muted-foreground">
             {matches.length} {matches.length === 1 ? "match" : "matches"}
           </div>
@@ -246,7 +258,7 @@ function ConfigEditor({ file }: { file: config.ConfigFile }) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           spellCheck={false}
-          className="min-h-0 flex-1 resize-none whitespace-pre font-mono text-xs leading-relaxed"
+          className="min-h-0 flex-1 resize-none whitespace-pre bg-console font-mono text-xs leading-relaxed"
         />
       )}
 

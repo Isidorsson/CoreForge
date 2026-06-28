@@ -137,68 +137,67 @@ export function Logs() {
         <EmptyState icon={ScrollText} title="No logs found" hint="The active core has no known log files yet." />
       ) : (
         <div className="flex min-h-0 flex-1 gap-4">
-          <ul className="w-64 shrink-0 space-y-1 overflow-auto">
-            {list.map((entry) => (
-              <LogRow
-                key={entry.kind}
-                entry={entry}
-                active={entry.kind === selectedKind}
-                onSelect={() => setSelectedKind(entry.kind)}
-              />
-            ))}
-          </ul>
-
-          <div className="flex min-h-0 flex-1 flex-col gap-2">
-            {!selected ? (
-              <div className="flex flex-1 items-center justify-center rounded-md border border-border">
-                <EmptyState icon={FileText} title="Select a log" hint="Pick a log on the left to view and tail it." />
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <FileText className="size-4 text-muted-foreground" />
-                    {selected.displayName}
-                    <span className="text-xs font-normal text-muted-foreground">{formatBytes(selected.size)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={!selected.archivable}
-                      onClick={() => archiveOne(selected.kind)}
-                    >
-                      <Archive className="size-3.5" /> Archive
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={!selected.clearable}
-                      onClick={() => setConfirmClear(true)}
-                    >
-                      <Eraser className="size-3.5" /> Clear
-                    </Button>
-                  </div>
-                </div>
-
-                <div
-                  ref={boxRef}
-                  onScroll={onScroll}
-                  className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-[oklch(0.13_0.012_252)] p-3 font-mono text-xs leading-relaxed text-foreground/90"
-                >
-                  {lines.length === 0 ? (
-                    <p className="text-muted-foreground">No output yet — this log is empty or hasn't been written to.</p>
-                  ) : (
-                    lines.map((l, i) => (
-                      <div key={i} className="whitespace-pre-wrap break-all">
-                        {highlightLine(l)}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </>
-            )}
+          <div className="flex w-64 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-card/40">
+            <div className="flex items-center justify-between border-b border-border px-3 py-2">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Log files</span>
+              <span className="text-[11px] tabular-nums text-muted-foreground">{list.length}</span>
+            </div>
+            <ul className="min-h-0 flex-1 space-y-0.5 overflow-auto p-1.5">
+              {list.map((entry) => (
+                <LogRow
+                  key={entry.kind}
+                  entry={entry}
+                  active={entry.kind === selectedKind}
+                  onSelect={() => setSelectedKind(entry.kind)}
+                />
+              ))}
+            </ul>
           </div>
+
+          {!selected ? (
+            <div className="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-border bg-console">
+              <EmptyState icon={FileText} title="Select a log" hint="Pick a log on the left to view and tail it." />
+            </div>
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-console">
+              <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+                <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                  <FileText className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{selected.displayName}</span>
+                  <span className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">
+                    {formatBytes(selected.size)}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className="size-1.5 rounded-full bg-success animate-blink" />
+                    tailing
+                  </span>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button size="sm" variant="outline" disabled={!selected.archivable} onClick={() => archiveOne(selected.kind)}>
+                    <Archive className="size-3.5" /> Archive
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={!selected.clearable} onClick={() => setConfirmClear(true)}>
+                    <Eraser className="size-3.5" /> Clear
+                  </Button>
+                </div>
+              </header>
+              <div
+                ref={boxRef}
+                onScroll={onScroll}
+                className="min-h-0 flex-1 overflow-auto bg-console p-3 font-mono text-xs leading-relaxed text-foreground/90"
+              >
+                {lines.length === 0 ? (
+                  <p className="font-sans text-muted-foreground">No output yet — this log is empty or hasn't been written to.</p>
+                ) : (
+                  lines.map((l, i) => (
+                    <div key={i} className="whitespace-pre-wrap break-all">
+                      {highlightLine(l)}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -230,19 +229,25 @@ function LogRow({
       <button
         onClick={onSelect}
         className={cn(
-          "w-full rounded-md px-3 py-2 text-left transition-colors",
+          "group relative flex w-full flex-col gap-0.5 rounded-md px-2.5 py-1.5 text-left transition-colors",
           active ? "bg-accent" : "hover:bg-accent/50",
         )}
       >
+        <span
+          className={cn(
+            "absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-primary transition-opacity",
+            active ? "opacity-100" : "opacity-0",
+          )}
+        />
         <div className="flex items-center justify-between gap-2">
           <span className="truncate text-sm font-medium">{entry.displayName}</span>
           {!entry.exists && (
-            <Badge variant="outline" className="shrink-0 text-muted-foreground">
+            <Badge variant="outline" className="shrink-0">
               missing
             </Badge>
           )}
         </div>
-        <div className="mt-0.5 text-xs text-muted-foreground">
+        <div className="text-[11px] tabular-nums text-muted-foreground">
           {entry.exists ? `${formatBytes(entry.size)} · ${formatRelative(entry.modified)}` : "—"}
         </div>
       </button>
