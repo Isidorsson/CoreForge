@@ -50,8 +50,8 @@ export function GetMetricsDBInfo() {
   return window['go']['main']['App']['GetMetricsDBInfo']();
 }
 
-export function GetServerMetrics() {
-  return window['go']['main']['App']['GetServerMetrics']();
+export function GetServerMetrics(arg1) {
+  return window['go']['main']['App']['GetServerMetrics'](arg1);
 }
 
 export function GetState() {

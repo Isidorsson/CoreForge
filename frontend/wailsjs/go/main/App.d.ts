@@ -3,10 +3,10 @@
 import {files} from '../models';
 import {profile} from '../models';
 import {main} from '../models';
+import {metrics} from '../models';
 import {process} from '../models';
 import {config} from '../models';
 import {logs} from '../models';
-import {metrics} from '../models';
 import {settings} from '../models';
 
 export function ArchiveLogs(arg1:Array<string>):Promise<string>;
@@ -33,7 +33,7 @@ export function GetBacklog(arg1:string):Promise<Array<string>>;
 
 export function GetMetricsDBInfo():Promise<main.MetricsDBInfo>;
 
-export function GetServerMetrics():Promise<metrics.Metrics>;
+export function GetServerMetrics(arg1:metrics.Filter):Promise<metrics.Metrics>;
 
 export function GetState():Promise<main.AppState>;
 

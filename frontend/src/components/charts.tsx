@@ -13,6 +13,7 @@ import {
   YAxis,
   Cell,
   Tooltip,
+  Legend,
   PieChart,
   Pie,
   AreaChart,
@@ -25,6 +26,8 @@ import { cn } from "@/lib/utils"
 const INK = "var(--color-foreground)"
 const SUB = "var(--color-muted-foreground)"
 const GRID = "var(--color-border)"
+/** Muted grey for the secondary series when two must be told apart in mono. */
+const SHADE = "color-mix(in oklch, var(--color-muted-foreground) 85%, transparent)"
 
 const axisTick = { fontSize: 11, fill: SUB }
 const tooltipStyle = {
@@ -83,6 +86,22 @@ export function CategoryBars({ data, height = 240 }: { data: metrics.Slice[]; he
   )
 }
 
+/** Horizontal grouped bars: one category, two factional series (class split). */
+export function GroupedBars({ data, height = 240 }: { data: metrics.ClassSplit[]; height?: number }) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} layout="vertical" margin={{ top: 2, right: 24, bottom: 2, left: 4 }} barCategoryGap="24%" barGap={1}>
+        <XAxis type="number" hide />
+        <YAxis type="category" dataKey="class" width={92} tick={axisTick} tickLine={false} axisLine={false} />
+        <Tooltip contentStyle={tooltipStyle} cursor={tooltipCursor} formatter={(v: number) => v.toLocaleString()} />
+        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
+        <Bar dataKey="alliance" name="Alliance" fill={INK} radius={[0, 3, 3, 0]} maxBarSize={9} />
+        <Bar dataKey="horde" name="Horde" fill={SHADE} radius={[0, 3, 3, 0]} maxBarSize={9} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
 /** Vertical histogram for ordered bins (level distribution). */
 export function Histogram({ data, height = 240 }: { data: metrics.Bucket[]; height?: number }) {
   return (
@@ -99,7 +118,7 @@ export function Histogram({ data, height = 240 }: { data: metrics.Bucket[]; heig
 
 /** Two-slice donut for binary splits (faction, gender). */
 export function SplitDonut({ data, height = 200 }: { data: metrics.Slice[]; height?: number }) {
-  const shades = [INK, "color-mix(in oklch, var(--color-muted-foreground) 85%, transparent)"]
+  const shades = [INK, SHADE]
   const total = data.reduce((s, d) => s + d.count, 0)
   return (
     <div className="flex items-center gap-3">

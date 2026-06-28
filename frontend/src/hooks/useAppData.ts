@@ -1,9 +1,9 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query"
 import { GetState, GetStatus, GetServerMetrics } from "../../wailsjs/go/main/App"
 import { useWailsEvent } from "./useWailsEvent"
 import { toast } from "@/lib/toast"
 import { errorMessage } from "@/lib/format"
-import type { process as proc } from "../../wailsjs/go/models"
+import type { process as proc, metrics } from "../../wailsjs/go/models"
 
 /** Stable query keys. */
 export const qk = {
@@ -35,10 +35,17 @@ export function useStatus() {
   return useQuery({ queryKey: qk.status, queryFn: GetStatus, refetchInterval: 4000 })
 }
 
-/** Server metrics snapshot. Heavy query — manual refetch, no auto-retry so a
- *  DB connection error surfaces immediately. */
-export function useMetrics() {
-  return useQuery({ queryKey: qk.metrics, queryFn: GetServerMetrics, staleTime: 30_000, retry: false })
+/** Server metrics snapshot scoped by `filter`. Heavy query — keyed on the filter
+ *  so each scope is cached separately; no auto-retry so a DB connection error
+ *  surfaces immediately. */
+export function useMetrics(filter: metrics.Filter) {
+  return useQuery({
+    queryKey: [...qk.metrics, filter],
+    queryFn: () => GetServerMetrics(filter),
+    staleTime: 30_000,
+    retry: false,
+    placeholderData: keepPreviousData,
+  })
 }
 
 /** Surface backend error events as toasts (registered once at the shell). */

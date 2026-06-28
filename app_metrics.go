@@ -21,9 +21,10 @@ type MetricsDBInfo struct {
 	HasPass bool   `json:"hasPass"` // whether a password is set
 }
 
-// GetServerMetrics returns a full metrics snapshot from the active core's DB.
-func (a *App) GetServerMetrics() (metrics.Metrics, error) {
-	return a.Metrics.Snapshot(a.ctx)
+// GetServerMetrics returns a full metrics snapshot from the active core's DB,
+// scoped by the given filter (zero value = whole realm).
+func (a *App) GetServerMetrics(filter metrics.Filter) (metrics.Metrics, error) {
+	return a.Metrics.Snapshot(a.ctx, filter)
 }
 
 // GetMetricsDBInfo returns the effective DB config (password stripped).
