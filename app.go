@@ -152,6 +152,9 @@ func (a *App) SetInstallDir(core, dir string) error {
 	if _, ok := profile.Builtin(ct); !ok {
 		return fmt.Errorf("unknown core %q", core)
 	}
+	if ct == a.store.Get().ActiveCore && a.Process.AnyRunning() {
+		return fmt.Errorf("stop the running server before changing its install directory")
+	}
 	if err := a.store.Update(func(s *settings.Settings) {
 		inst := s.Installs[ct]
 		inst.Type = ct

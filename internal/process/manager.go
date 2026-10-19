@@ -56,21 +56,37 @@ func (m *Manager) SetContext(ctx context.Context) {
 }
 
 func (m *Manager) SetTailLines(n int) {
-	m.mu.Lock()
-	if n > 0 {
-		m.tailLines = n
+	if n <= 0 {
+		return
 	}
-	m.mu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.tailLines = n
+	for _, p := range []*managedProc{m.auth, m.world} {
+		if p != nil {
+			p.ring.resize(n)
+		}
+	}
 }
 
-// Rebind rebuilds the managed processes for a newly-selected core/install.
+// Rebind points the manager at a core/install. A managed process is replaced only
+// when its exe or working dir changed: rebuilding it would drop the handle (and
+// stdin) of a server that is still running.
 func (m *Manager) Rebind(r profile.ResolvedProfile) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.resolved = r
-	m.auth = newManagedProc(TargetAuth, r.AuthServerPath(), r.Root, m.emit, m.tailLines, m.triggerPoll)
-	m.world = newManagedProc(TargetWorld, r.WorldServerPath(), r.Root, m.emit, m.tailLines, m.triggerPoll)
+	m.auth = m.reuseOrNew(m.auth, TargetAuth, r.AuthServerPath(), r.Root)
+	m.world = m.reuseOrNew(m.world, TargetWorld, r.WorldServerPath(), r.Root)
 	m.db.Rebind(r.DockerComposePath(), r.DockerContainer, r.DockerService)
+}
+
+// reuseOrNew keeps p when it already targets exe/workDir. Caller holds the lock.
+func (m *Manager) reuseOrNew(p *managedProc, t Target, exe, workDir string) *managedProc {
+	if p != nil && p.exePath == exe && p.workDir == workDir {
+		return p
+	}
+	return newManagedProc(t, exe, workDir, m.emit, m.tailLines, m.triggerPoll)
 }
 
 // AnyRunning reports whether a server is running/transitioning — used to block a

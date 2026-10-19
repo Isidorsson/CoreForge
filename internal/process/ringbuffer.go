@@ -26,6 +26,19 @@ func (r *ringBuffer) append(line string) {
 	}
 }
 
+// resize changes the capacity, keeping the newest lines when shrinking.
+func (r *ringBuffer) resize(max int) {
+	if max <= 0 {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.max = max
+	if len(r.lines) > max {
+		r.lines = append([]string(nil), r.lines[len(r.lines)-max:]...)
+	}
+}
+
 func (r *ringBuffer) snapshot() []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()

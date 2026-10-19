@@ -105,16 +105,19 @@ func (p *managedProc) Start() error {
 	p.done = done
 	p.mu.Unlock()
 
-	go p.pump(stdout)
-	go p.pump(stderr)
-	go p.reap(done)
+	var pumps sync.WaitGroup
+	pumps.Add(2)
+	go p.pump(stdout, &pumps)
+	go p.pump(stderr, &pumps)
+	go p.reap(done, &pumps)
 	if p.notify != nil {
 		p.notify()
 	}
 	return nil
 }
 
-func (p *managedProc) pump(r io.Reader) {
+func (p *managedProc) pump(r io.Reader, wg *sync.WaitGroup) {
+	defer wg.Done()
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	for sc.Scan() {
@@ -124,7 +127,11 @@ func (p *managedProc) pump(r io.Reader) {
 	}
 }
 
-func (p *managedProc) reap(done chan struct{}) {
+// reap waits for the pumps to hit EOF before calling Wait: Wait closes the pipes,
+// so calling it first can drop the final lines, which for a crash are the ones
+// that matter.
+func (p *managedProc) reap(done chan struct{}, pumps *sync.WaitGroup) {
+	pumps.Wait()
 	err := p.cmd.Wait()
 	p.batch.flushNow()
 
