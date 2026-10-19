@@ -155,25 +155,27 @@ func (p *managedProc) reap(done chan struct{}, pumps *sync.WaitGroup) {
 }
 
 // Stop walks the graceful-stop ladder: stdin "quit" → polite taskkill → forced
-// taskkill. force=true skips straight to the forced kill.
+// taskkill. force=true skips straight to the forced kill, and also cuts short a
+// graceful stop that is already in progress but hanging.
 func (p *managedProc) Stop(force bool) error {
 	p.mu.Lock()
-	if p.state != StateRunning && p.state != StateStarting {
+	pid, stdin, done := p.pid, p.stdin, p.done
+	switch {
+	case p.state == StateStopping && force:
+		p.mu.Unlock()
+		return p.kill(pid, done)
+	case p.state != StateRunning && p.state != StateStarting:
 		p.mu.Unlock()
 		return nil
 	}
 	p.state = StateStopping
-	pid := p.pid
-	stdin := p.stdin
-	done := p.done
 	p.mu.Unlock()
 	if p.notify != nil {
 		p.notify()
 	}
 
 	if force {
-		_ = taskkill(pid, true)
-		return p.await(done, killTimeout)
+		return p.kill(pid, done)
 	}
 	// 1. Clean shutdown: the worldserver console accepts "quit"; this flushes the
 	//    DB and releases log handles. authserver ignores it and falls through.
@@ -189,6 +191,11 @@ func (p *managedProc) Stop(force bool) error {
 		return nil
 	}
 	// 3. Forced kill — last resort.
+	return p.kill(pid, done)
+}
+
+// kill force-terminates the process tree and waits for reap to observe the exit.
+func (p *managedProc) kill(pid int, done chan struct{}) error {
 	_ = taskkill(pid, true)
 	return p.await(done, killTimeout)
 }
@@ -237,14 +244,19 @@ func stopExternal(pid int, force bool) error {
 	if pid <= 0 {
 		return nil
 	}
-	if force {
-		return taskkill(pid, true)
+	if !force {
+		_ = taskkill(pid, false)
+		if waitGone(pid, graceTimeout) {
+			return nil
+		}
 	}
-	_ = taskkill(pid, false)
-	if waitGone(pid, graceTimeout) {
-		return nil
+	// taskkill /F returns before the process is fully gone; wait so a restart
+	// that follows does not see the old instance and refuse to start.
+	_ = taskkill(pid, true)
+	if !waitGone(pid, killTimeout) {
+		return fmt.Errorf("process %d did not exit within %s", pid, killTimeout)
 	}
-	return taskkill(pid, true)
+	return nil
 }
 
 // waitGone polls until the PID disappears or the timeout elapses.

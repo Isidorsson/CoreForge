@@ -30,6 +30,9 @@ type Manager struct {
 	world     *managedProc
 	db        *DockerDB
 	tailLines int
+	// externalStops counts in-flight stops of servers CoreForge does not own, so
+	// status can report them as stopping (they have no managedProc state to show it).
+	externalStops map[Target]int
 
 	appCtx     context.Context
 	pollCancel context.CancelFunc
@@ -42,10 +45,11 @@ type Manager struct {
 
 func NewManager(emit events.Emitter, tailLines int) *Manager {
 	return &Manager{
-		emit:       emit,
-		db:         NewDockerDB(emit),
-		tailLines:  tailLines,
-		pollSignal: make(chan struct{}, 1),
+		emit:          emit,
+		db:            NewDockerDB(emit),
+		tailLines:     tailLines,
+		externalStops: make(map[Target]int),
+		pollSignal:    make(chan struct{}, 1),
 	}
 }
 
@@ -175,9 +179,30 @@ func (m *Manager) stopTarget(t Target, force bool) error {
 		return p.Stop(force)
 	}
 	if pid := discoverOne(exe); pid > 0 {
+		m.markExternalStop(t, 1)
+		defer m.markExternalStop(t, -1)
 		return stopExternal(pid, force)
 	}
 	return nil
+}
+
+func (m *Manager) markExternalStop(t Target, delta int) {
+	m.mu.Lock()
+	m.externalStops[t] += delta
+	m.mu.Unlock()
+	m.triggerPoll()
+}
+
+// startIfStopped starts a server unless it is already up, managed or external.
+func (m *Manager) startIfStopped(t Target) error {
+	p, exe := m.targetProc(t)
+	if p == nil {
+		return errNotReady
+	}
+	if isLive(p) || discoverOne(exe) > 0 {
+		return nil
+	}
+	return p.Start()
 }
 
 func (m *Manager) StartAuth() error           { return m.startTarget(TargetAuth) }
@@ -185,7 +210,8 @@ func (m *Manager) StartWorld() error          { return m.startTarget(TargetWorld
 func (m *Manager) StopAuth(force bool) error  { return m.stopTarget(TargetAuth, force) }
 func (m *Manager) StopWorld(force bool) error { return m.stopTarget(TargetWorld, force) }
 
-// StartAll brings up the stack in order: DB → wait-ready → auth → world.
+// StartAll brings up the stack in order: DB → wait-ready → auth → world, leaving
+// any server that is already running alone.
 func (m *Manager) StartAll() error {
 	auth, world := m.procs()
 	if auth == nil || world == nil {
@@ -200,10 +226,10 @@ func (m *Manager) StartAll() error {
 			return err
 		}
 	}
-	if err := m.startTarget(TargetAuth); err != nil {
+	if err := m.startIfStopped(TargetAuth); err != nil {
 		return err
 	}
-	if err := m.startTarget(TargetWorld); err != nil {
+	if err := m.startIfStopped(TargetWorld); err != nil {
 		return err
 	}
 	m.triggerPoll()
@@ -303,6 +329,7 @@ func (m *Manager) GetStatus() Status {
 	m.mu.Lock()
 	auth, world, db := m.auth, m.world, m.db
 	resolved := m.resolved
+	authStopping, worldStopping := m.externalStops[TargetAuth] > 0, m.externalStops[TargetWorld] > 0
 	m.mu.Unlock()
 
 	st := Status{
@@ -329,13 +356,21 @@ func (m *Manager) GetStatus() Status {
 	if needAuth || needWorld {
 		aPID, wPID := discoverRunning(resolved.AuthServerPath(), resolved.WorldServerPath())
 		if needAuth && aPID > 0 {
-			st.Auth = ProcInfo{Target: TargetAuth, State: StateRunning, PID: aPID, External: true}
+			st.Auth = externalInfo(TargetAuth, aPID, authStopping)
 		}
 		if needWorld && wPID > 0 {
-			st.World = ProcInfo{Target: TargetWorld, State: StateRunning, PID: wPID, External: true}
+			st.World = externalInfo(TargetWorld, wPID, worldStopping)
 		}
 	}
 	return st
+}
+
+func externalInfo(t Target, pid int, stopping bool) ProcInfo {
+	state := StateRunning
+	if stopping {
+		state = StateStopping
+	}
+	return ProcInfo{Target: t, State: state, PID: pid, External: true}
 }
 
 // StartStatusPoller emits status changes on a ticker and whenever triggerPoll fires.
