@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Database, Shield, Globe, Play, Square, RotateCw, Send, ChevronRight, Terminal } from "lucide-react"
+import { Database, Shield, Globe, Play, Square, RotateCw, Send, ChevronRight, Terminal, Ban } from "lucide-react"
 import {
   StartDB,
   StopDB,
@@ -14,6 +14,7 @@ import {
 } from "../../wailsjs/go/main/App"
 import { useAppState, useStatus, runAction } from "@/hooks/useAppData"
 import { Button } from "@/components/ui/primitives"
+import { ConfirmDialog } from "@/components/ui/dialog"
 import { StatusPill, StatusDot, procTone, dbTone, type Tone } from "@/components/StatusPill"
 import { ConsolePane } from "@/components/ConsolePane"
 import { PageHeader, NotConfigured } from "@/components/Page"
@@ -108,6 +109,7 @@ function ProcNode({
   const uptime = useUptime(info.startedAt)
   const stopFn = target === "auth" ? StopAuth : StopWorld
   const startFn = target === "auth" ? StartAuth : StartWorld
+  const [confirmForce, setConfirmForce] = useState(false)
 
   return (
     <NodeShell
@@ -121,7 +123,7 @@ function ProcNode({
         <MetaRow label="PID" value={info.pid ? String(info.pid) : "—"} />
         <MetaRow label="Uptime" value={info.state === "running" ? uptime : "—"} />
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {running ? (
           <>
             <Button
@@ -133,16 +135,26 @@ function ProcNode({
             >
               <Square className="size-3.5" /> Stop
             </Button>
-            {!info.external && (
-              <Button
-                size="sm"
-                variant="outline"
-                loading={busy === `${target}-restart`}
-                onClick={() => run(`${target}-restart`, () => RestartServer(target), `Restart ${title}`)}
-              >
-                <RotateCw className="size-3.5" /> Restart
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant="outline"
+              loading={busy === `${target}-restart`}
+              title={info.external ? "Stop the external process and relaunch it under CoreForge" : undefined}
+              onClick={() =>
+                run(`${target}-restart`, () => RestartServer(target), `${info.external ? "Adopt" : "Restart"} ${title}`)
+              }
+            >
+              <RotateCw className="size-3.5" /> {info.external ? "Adopt" : "Restart"}
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              loading={busy === `${target}-force`}
+              title="Force-kill the process immediately"
+              onClick={() => setConfirmForce(true)}
+            >
+              <Ban className="size-3.5" /> Force
+            </Button>
           </>
         ) : (
           <Button
@@ -155,6 +167,18 @@ function ProcNode({
           </Button>
         )}
       </div>
+      <ConfirmDialog
+        open={confirmForce}
+        title={`Force stop ${title}?`}
+        description={`This kills the ${target} server process${info.pid ? ` (PID ${info.pid})` : ""} immediately, with no clean shutdown — unsaved world state can be lost. Use it only when a normal stop is stuck.`}
+        confirmLabel="Force stop"
+        confirmVariant="destructive"
+        onConfirm={() => {
+          setConfirmForce(false)
+          run(`${target}-force`, () => stopFn(true), `Force stop ${title}`)
+        }}
+        onClose={() => setConfirmForce(false)}
+      />
     </NodeShell>
   )
 }

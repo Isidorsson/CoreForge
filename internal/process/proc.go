@@ -221,6 +221,37 @@ func (p *managedProc) Info() ProcInfo {
 
 func (p *managedProc) Backlog() []string { return p.ring.snapshot() }
 
+// stopExternal terminates a server CoreForge did not spawn (an orphan from a
+// previous run, or one launched via the user's .bat scripts). We don't own its
+// stdin, so there is no clean "quit" path — escalate taskkill: polite (WM_CLOSE,
+// which a console worldserver can still trap and flush on) first, then forced.
+// force=true skips straight to the forced kill.
+func stopExternal(pid int, force bool) error {
+	if pid <= 0 {
+		return nil
+	}
+	if force {
+		return taskkill(pid, true)
+	}
+	_ = taskkill(pid, false)
+	if waitGone(pid, graceTimeout) {
+		return nil
+	}
+	return taskkill(pid, true)
+}
+
+// waitGone polls until the PID disappears or the timeout elapses.
+func waitGone(pid int, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if !pidAlive(pid) {
+			return true
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	return !pidAlive(pid)
+}
+
 // taskkill terminates a process tree by PID via the Windows taskkill utility.
 func taskkill(pid int, force bool) error {
 	if pid <= 0 {

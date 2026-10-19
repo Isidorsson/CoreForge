@@ -74,12 +74,18 @@ func (m *Manager) Rebind(r profile.ResolvedProfile) {
 }
 
 // AnyRunning reports whether a server is running/transitioning — used to block a
-// core switch while servers are live.
+// core switch while servers are live. Counts orphan instances CoreForge does not
+// own, so a leftover server still blocks the switch.
 func (m *Manager) AnyRunning() bool {
 	m.mu.Lock()
 	auth, world := m.auth, m.world
+	authExe, worldExe := m.resolved.AuthServerPath(), m.resolved.WorldServerPath()
 	m.mu.Unlock()
-	return isLive(auth) || isLive(world)
+	if isLive(auth) || isLive(world) {
+		return true
+	}
+	aPID, wPID := discoverRunning(authExe, worldExe)
+	return aPID > 0 || wPID > 0
 }
 
 func isLive(p *managedProc) bool {
@@ -100,6 +106,21 @@ func (m *Manager) procs() (auth, world *managedProc) {
 	return m.auth, m.world
 }
 
+// targetProc returns the managed process for a target plus the exe path used to
+// detect an external instance of it.
+func (m *Manager) targetProc(t Target) (*managedProc, string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	switch t {
+	case TargetAuth:
+		return m.auth, m.resolved.AuthServerPath()
+	case TargetWorld:
+		return m.world, m.resolved.WorldServerPath()
+	default:
+		return nil, ""
+	}
+}
+
 func (m *Manager) ctx() context.Context {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -111,37 +132,42 @@ func (m *Manager) ctx() context.Context {
 
 // --- server controls ---
 
-func (m *Manager) StartAuth() error {
-	auth, _ := m.procs()
-	if auth == nil {
+// startTarget spawns a server, refusing if a matching instance is already running
+// outside CoreForge — spawning a second would collide on the listen port.
+func (m *Manager) startTarget(t Target) error {
+	p, exe := m.targetProc(t)
+	if p == nil {
 		return errNotReady
 	}
-	return auth.Start()
+	if !isLive(p) {
+		if pid := discoverOne(exe); pid > 0 {
+			return fmt.Errorf("%s server is already running outside CoreForge (PID %d); stop or adopt it first", t, pid)
+		}
+	}
+	return p.Start()
 }
 
-func (m *Manager) StartWorld() error {
-	_, world := m.procs()
-	if world == nil {
+// stopTarget stops a server. If CoreForge owns a live process it walks the graceful
+// ladder; otherwise it terminates a matching external/orphan process by PID so a
+// server left over from a previous run can still be shut down.
+func (m *Manager) stopTarget(t Target, force bool) error {
+	p, exe := m.targetProc(t)
+	if p == nil {
 		return errNotReady
 	}
-	return world.Start()
+	if isLive(p) {
+		return p.Stop(force)
+	}
+	if pid := discoverOne(exe); pid > 0 {
+		return stopExternal(pid, force)
+	}
+	return nil
 }
 
-func (m *Manager) StopAuth(force bool) error {
-	auth, _ := m.procs()
-	if auth == nil {
-		return errNotReady
-	}
-	return auth.Stop(force)
-}
-
-func (m *Manager) StopWorld(force bool) error {
-	_, world := m.procs()
-	if world == nil {
-		return errNotReady
-	}
-	return world.Stop(force)
-}
+func (m *Manager) StartAuth() error           { return m.startTarget(TargetAuth) }
+func (m *Manager) StartWorld() error          { return m.startTarget(TargetWorld) }
+func (m *Manager) StopAuth(force bool) error  { return m.stopTarget(TargetAuth, force) }
+func (m *Manager) StopWorld(force bool) error { return m.stopTarget(TargetWorld, force) }
 
 // StartAll brings up the stack in order: DB → wait-ready → auth → world.
 func (m *Manager) StartAll() error {
@@ -158,29 +184,25 @@ func (m *Manager) StartAll() error {
 			return err
 		}
 	}
-	if err := auth.Start(); err != nil {
+	if err := m.startTarget(TargetAuth); err != nil {
 		return err
 	}
-	if err := world.Start(); err != nil {
+	if err := m.startTarget(TargetWorld); err != nil {
 		return err
 	}
 	m.triggerPoll()
 	return nil
 }
 
-// StopAll stops world then auth (DB is left up unless stopped explicitly).
+// StopAll stops world then auth (DB is left up unless stopped explicitly). Orphan
+// instances CoreForge does not own are terminated too.
 func (m *Manager) StopAll(force bool) error {
-	auth, world := m.procs()
 	var firstErr error
-	if world != nil {
-		if err := world.Stop(force); err != nil {
-			firstErr = err
-		}
+	if err := m.stopTarget(TargetWorld, force); err != nil {
+		firstErr = err
 	}
-	if auth != nil {
-		if err := auth.Stop(force); err != nil && firstErr == nil {
-			firstErr = err
-		}
+	if err := m.stopTarget(TargetAuth, force); err != nil && firstErr == nil {
+		firstErr = err
 	}
 	m.triggerPoll()
 	return firstErr
