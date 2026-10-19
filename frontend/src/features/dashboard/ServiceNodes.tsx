@@ -6,7 +6,7 @@ import { ConfirmDialog } from "@/shared/ui/dialog"
 import { StatusPill, procTone, dbTone, type Tone } from "@/shared/ui/StatusPill"
 import { formatUptime } from "@/shared/lib/format"
 import type { process as proc } from "@wails/go/models"
-import type { useBusy } from "./useBusy"
+import type { useBusy, BusyKeys } from "./useBusy"
 
 /** Re-render every second so uptime stays live without backend chatter. */
 function useUptime(startedAt: number) {
@@ -74,14 +74,14 @@ export function ProcNode({
   icon: React.ElementType
   target: "auth" | "world"
   info: proc.ProcInfo
-  busy: string | null
+  busy: BusyKeys
   run: ReturnType<typeof useBusy>["run"]
 }) {
   const tone = procTone(info.state, info.external)
   const live = info.state === "running" || info.state === "starting" || info.state === "stopping"
   const stopping = info.state === "stopping"
   // Force stays enabled throughout: it is the escape hatch for a stop that hangs.
-  const locked = stopping || (busy !== null && busy.startsWith(`${target}-`))
+  const locked = stopping || [...busy].some((k) => k.startsWith(`${target}-`) || k.startsWith("all-"))
   const uptime = useUptime(info.startedAt)
   const stopFn = target === "auth" ? StopAuth : StopWorld
   const startFn = target === "auth" ? StartAuth : StartWorld
@@ -105,7 +105,7 @@ export function ProcNode({
             <Button
               size="sm"
               variant="secondary"
-              loading={busy === `${target}-stop` || stopping}
+              loading={busy.has(`${target}-stop`) || stopping}
               disabled={locked}
               onClick={() => run(`${target}-stop`, () => stopFn(false), `Stop ${title}`)}
             >
@@ -114,7 +114,7 @@ export function ProcNode({
             <Button
               size="sm"
               variant="outline"
-              loading={busy === `${target}-restart`}
+              loading={busy.has(`${target}-restart`)}
               disabled={locked}
               title={info.external ? "Stop the external process and relaunch it under CoreForge" : undefined}
               onClick={() =>
@@ -126,7 +126,7 @@ export function ProcNode({
             <Button
               size="sm"
               variant="destructive"
-              loading={busy === `${target}-force`}
+              loading={busy.has(`${target}-force`)}
               title="Force-kill the process immediately"
               onClick={() => setConfirmForce(true)}
             >
@@ -137,7 +137,8 @@ export function ProcNode({
           <Button
             size="sm"
             className="col-span-3"
-            loading={busy === `${target}-start`}
+            loading={busy.has(`${target}-start`)}
+            disabled={locked}
             onClick={() => run(`${target}-start`, () => startFn(), `Start ${title}`)}
           >
             <Play className="size-3.5" /> Start
@@ -160,7 +161,7 @@ export function ProcNode({
   )
 }
 
-export function DbNode({ state, busy, run }: { state: string; busy: string | null; run: ReturnType<typeof useBusy>["run"] }) {
+export function DbNode({ state, busy, run }: { state: string; busy: BusyKeys; run: ReturnType<typeof useBusy>["run"] }) {
   const tone = dbTone(state)
   const up = state === "ready" || state === "starting"
   return (
@@ -175,13 +176,13 @@ export function DbNode({ state, busy, run }: { state: string; busy: string | nul
             size="sm"
             variant="secondary"
             className="flex-1"
-            loading={busy === "db-stop"}
+            loading={busy.has("db-stop")}
             onClick={() => run("db-stop", StopDB, "Stop DB")}
           >
             <Square className="size-3.5" /> Stop
           </Button>
         ) : (
-          <Button size="sm" className="flex-1" loading={busy === "db-start"} onClick={() => run("db-start", StartDB, "Start DB")}>
+          <Button size="sm" className="flex-1" loading={busy.has("db-start")} onClick={() => run("db-start", StartDB, "Start DB")}>
             <Play className="size-3.5" /> Start
           </Button>
         )}

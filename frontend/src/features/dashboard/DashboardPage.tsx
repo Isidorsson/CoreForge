@@ -25,13 +25,13 @@ export function DashboardPage() {
         description="Operate and observe your server stack"
         actions={
           <>
-            <Button size="sm" loading={busy === "all-start"} onClick={() => run("all-start", StartAll, "Start all")}>
+            <Button size="sm" loading={busy.has("all-start")} onClick={() => run("all-start", StartAll, "Start all")}>
               <Play className="size-3.5" /> Start all
             </Button>
             <Button
               size="sm"
               variant="secondary"
-              loading={busy === "all-stop"}
+              loading={busy.has("all-stop")}
               onClick={() => run("all-stop", () => StopAll(false), "Stop all")}
             >
               <Square className="size-3.5" /> Stop all

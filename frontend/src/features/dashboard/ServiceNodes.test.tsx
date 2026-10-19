@@ -19,9 +19,9 @@ function info(state: string, external = false): proc.ProcInfo {
   return { state, external, pid: 47488, startedAt: 0 } as proc.ProcInfo
 }
 
-function renderNode(state: string, busy: string | null = null, external = false) {
+function renderNode(state: string, busy: string[] = [], external = false) {
   return render(
-    <ProcNode title="Auth Server" icon={Shield} target="auth" info={info(state, external)} busy={busy} run={vi.fn()} />,
+    <ProcNode title="Auth Server" icon={Shield} target="auth" info={info(state, external)} busy={new Set(busy)} run={vi.fn()} />,
   )
 }
 
@@ -48,9 +48,25 @@ describe("ProcNode actions", () => {
   })
 
   it("disables sibling actions while one is in flight", () => {
-    renderNode("running", "auth-stop")
+    renderNode("running", ["auth-stop"])
     expect(screen.getByRole("button", { name: /restart/i })).toBeDisabled()
     expect(screen.getByRole("button", { name: /force/i })).toBeEnabled()
+  })
+
+  it("keeps the spinner on its own action while another node is busy", () => {
+    renderNode("running", ["auth-stop", "world-stop"], true)
+    expect(screen.getByRole("button", { name: /^stop$/i })).toBeDisabled()
+    expect(screen.getByRole("button", { name: /adopt/i })).toBeDisabled()
+  })
+
+  it("ignores busy actions on the other node", () => {
+    renderNode("running", ["world-stop"])
+    expect(screen.getByRole("button", { name: /^stop$/i })).toBeEnabled()
+  })
+
+  it("locks its controls while a stack-wide action runs", () => {
+    renderNode("stopped", ["all-start"])
+    expect(screen.getByRole("button", { name: /^start$/i })).toBeDisabled()
   })
 
   it("shows only Start when stopped", () => {
