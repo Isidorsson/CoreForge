@@ -44,7 +44,6 @@ function install() {
       activeCore: "trinitycore",
       logTailLines: 3000,
       confirmDestructive: true,
-      stopServersOnExit: true,
       installs: { trinitycore: { type: "trinitycore", installDir: "C:\\Games\\TrinityCore\\server" } },
     },
   }
@@ -271,6 +270,7 @@ function install() {
     LogError: () => undefined,
     LogFatal: () => undefined,
     WindowSetTitle: () => undefined,
+    ClipboardSetText: async () => true,
   }
   w.runtime = runtime
 
