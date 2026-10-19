@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Database } from "lucide-react"
 import { SetDockerOverride } from "@wails/go/main/App"
 import { runAction } from "@/shared/hooks/useAppData"
@@ -8,6 +8,7 @@ import type { main } from "@wails/go/models"
 
 type CoreInstall = main.AppState["settings"]["installs"][string]
 
+/** Keyed by core and overrides in the parent, so drafts reset when the saved values change. */
 export function DockerCard({ install, activeCore, displayName }: {
   install: CoreInstall | undefined
   activeCore: string
@@ -15,10 +16,6 @@ export function DockerCard({ install, activeCore, displayName }: {
 }) {
   const [compose, setCompose] = useState(install?.dockerComposeOverride ?? "")
   const [container, setContainer] = useState(install?.dockerContainerOverride ?? "")
-  useEffect(() => {
-    setCompose(install?.dockerComposeOverride ?? "")
-    setContainer(install?.dockerContainerOverride ?? "")
-  }, [install?.dockerComposeOverride, install?.dockerContainerOverride])
 
   const save = () =>
     runAction(() => SetDockerOverride(activeCore, compose.trim(), container.trim()), "Save Docker overrides")

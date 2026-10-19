@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { FolderSearch } from "lucide-react"
 import { SetInstallDir, BrowseForDirectory } from "@wails/go/main/App"
 import { runAction } from "@/shared/hooks/useAppData"
@@ -6,9 +6,9 @@ import { Button, Input, Label } from "@/shared/ui/primitives"
 import { toast } from "@/shared/ui/toast"
 import type { main } from "@wails/go/models"
 
+/** Keyed by installDir in the parent, so the draft resets when the saved dir changes. */
 export function InstallRow({ core, installDir }: { core: main.CoreOption; installDir: string }) {
   const [value, setValue] = useState(installDir)
-  useEffect(() => setValue(installDir), [installDir])
 
   const save = (dir: string) => {
     if (dir === installDir) return

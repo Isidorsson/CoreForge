@@ -1,42 +1,54 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { SlidersHorizontal } from "lucide-react"
 import { UpdateOptions } from "@wails/go/main/App"
 import { runAction } from "@/shared/hooks/useAppData"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Switch } from "@/shared/ui/primitives"
 import type { main } from "@wails/go/models"
 
+const LINES_SAVE_DELAY_MS = 600
+
+type Options = { lines: number; confirm: boolean; stop: boolean }
+
+function parseLines(text: string): number | null {
+  const n = Number(text)
+  return Number.isInteger(n) && n > 0 ? n : null
+}
+
 export function OptionsCard({ settings }: { settings: main.AppState["settings"] }) {
-  const [lines, setLines] = useState(String(settings.logTailLines))
-  const [confirmDestructive, setConfirmDestructive] = useState(settings.confirmDestructive)
-  const [stopOnExit, setStopOnExit] = useState(settings.stopServersOnExit)
+  // The draft remembers the stored value it was typed against. It stays visible
+  // while that value (or the draft's own saved value) is current, and drops out
+  // when the line count changes elsewhere. A parent key can't do this: each
+  // debounced save changes the prop and would remount the input mid-typing.
+  const [draft, setDraft] = useState<{ base: number; text: string } | null>(null)
+  const pendingSave = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(pendingSave.current), [])
 
-  useEffect(() => {
-    setLines(String(settings.logTailLines))
-    setConfirmDestructive(settings.confirmDestructive)
-    setStopOnExit(settings.stopServersOnExit)
-  }, [settings.logTailLines, settings.confirmDestructive, settings.stopServersOnExit])
+  const stored = settings.logTailLines
+  const lines =
+    draft && (draft.base === stored || parseLines(draft.text) === stored) ? draft.text : String(stored)
 
-  const persist = (next: { lines: number; confirm: boolean; stop: boolean }) =>
+  const current: Options = {
+    lines: parseLines(lines) ?? stored,
+    confirm: settings.confirmDestructive,
+    stop: settings.stopServersOnExit,
+  }
+
+  const persist = (next: Options) =>
     runAction(() => UpdateOptions(next.lines, next.confirm, next.stop), "Save options").catch(() => {})
 
-  useEffect(() => {
-    const parsed = Number(lines)
-    if (!Number.isFinite(parsed) || parsed <= 0 || parsed === settings.logTailLines) return
-    const id = window.setTimeout(
-      () => persist({ lines: parsed, confirm: confirmDestructive, stop: stopOnExit }),
-      600,
-    )
-    return () => window.clearTimeout(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines])
-
-  const toggleConfirm = (v: boolean) => {
-    setConfirmDestructive(v)
-    persist({ lines: settings.logTailLines, confirm: v, stop: stopOnExit })
+  const editLines = (text: string) => {
+    window.clearTimeout(pendingSave.current)
+    setDraft({ base: stored, text })
+    const parsed = parseLines(text)
+    if (parsed === null || parsed === stored) return
+    pendingSave.current = window.setTimeout(() => persist({ ...current, lines: parsed }), LINES_SAVE_DELAY_MS)
   }
-  const toggleStop = (v: boolean) => {
-    setStopOnExit(v)
-    persist({ lines: settings.logTailLines, confirm: confirmDestructive, stop: v })
+
+  // Saving a toggle also flushes a pending line-count edit, so the delayed save
+  // can't later overwrite the toggle with stale switch values.
+  const toggle = (patch: Partial<Options>) => {
+    window.clearTimeout(pendingSave.current)
+    persist({ ...current, ...patch })
   }
 
   return (
@@ -55,7 +67,7 @@ export function OptionsCard({ settings }: { settings: main.AppState["settings"] 
             type="number"
             min={1}
             value={lines}
-            onChange={(e) => setLines(e.target.value)}
+            onChange={(e) => editLines(e.target.value)}
             className="max-w-32"
           />
         </div>
@@ -64,14 +76,14 @@ export function OptionsCard({ settings }: { settings: main.AppState["settings"] 
             <p className="text-sm font-medium">Confirm destructive actions</p>
             <p className="text-xs text-muted-foreground">Ask before deletes, restores and force-stops.</p>
           </div>
-          <Switch checked={confirmDestructive} onCheckedChange={toggleConfirm} />
+          <Switch checked={settings.confirmDestructive} onCheckedChange={(confirm) => toggle({ confirm })} />
         </div>
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-medium">Stop servers when CoreForge closes</p>
             <p className="text-xs text-muted-foreground">Gracefully stop managed processes on exit.</p>
           </div>
-          <Switch checked={stopOnExit} onCheckedChange={toggleStop} />
+          <Switch checked={settings.stopServersOnExit} onCheckedChange={(stop) => toggle({ stop })} />
         </div>
       </CardContent>
     </Card>

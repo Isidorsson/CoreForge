@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { BarChart3, Plug } from "lucide-react"
 import { GetMetricsDBInfo, TestMetricsConnection, SetMetricsDBOverride } from "@wails/go/main/App"
@@ -10,12 +10,12 @@ import type { settings as settingsNs } from "@wails/go/models"
 type DBOverride = settingsNs.MetricsDBOverride
 const emptyOverride: DBOverride = { host: "", port: "", user: "", pass: "", authDb: "", worldDb: "", charDb: "" }
 
+/** Keyed by the stored override in the parent, so the draft resets when it changes. */
 export function MetricsDBCard({ override }: { override?: DBOverride }) {
   const qc = useQueryClient()
   const { data: info } = useQuery({ queryKey: ["metricsDb"], queryFn: GetMetricsDBInfo, retry: false })
   const [f, setF] = useState<DBOverride>(override ?? emptyOverride)
   const [testing, setTesting] = useState(false)
-  useEffect(() => setF(override ?? emptyOverride), [override])
 
   const set = (k: keyof DBOverride) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }))

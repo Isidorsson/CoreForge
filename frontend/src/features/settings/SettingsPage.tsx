@@ -30,21 +30,27 @@ export function SettingsPage() {
             <CardDescription>Where each core's binaries and config live on disk.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {cores.map((core) => (
-              <InstallRow key={core.type} core={core} installDir={installs[core.type]?.installDir ?? ""} />
-            ))}
+            {cores.map((core) => {
+              const installDir = installs[core.type]?.installDir ?? ""
+              return <InstallRow key={`${core.type}:${installDir}`} core={core} installDir={installDir} />
+            })}
           </CardContent>
         </Card>
 
         {activeCore && (
           <DockerCard
+            key={JSON.stringify([
+              activeCore,
+              installs[activeCore]?.dockerComposeOverride,
+              installs[activeCore]?.dockerContainerOverride,
+            ])}
             install={installs[activeCore]}
             activeCore={activeCore}
             displayName={activeOption?.displayName ?? activeCore}
           />
         )}
 
-        <MetricsDBCard override={state.settings.metricsDb} />
+        <MetricsDBCard key={JSON.stringify(state.settings.metricsDb ?? null)} override={state.settings.metricsDb} />
 
         <OptionsCard settings={state.settings} />
       </div>
