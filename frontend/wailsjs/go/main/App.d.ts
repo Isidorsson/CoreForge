@@ -17,6 +17,8 @@ export function BrowseFiles(arg1:string):Promise<Array<files.Entry>>;
 
 export function BrowseForDirectory(arg1:string):Promise<string>;
 
+export function ClearConsole(arg1:string):Promise<void>;
+
 export function ClearCrashes():Promise<files.CleanupPreview>;
 
 export function ClearLog(arg1:string):Promise<void>;
@@ -91,4 +93,4 @@ export function StopWorld(arg1:boolean):Promise<void>;
 
 export function TestMetricsConnection():Promise<main.MetricsDBInfo>;
 
-export function UpdateOptions(arg1:number,arg2:boolean,arg3:boolean):Promise<void>;
+export function UpdateOptions(arg1:number,arg2:boolean):Promise<void>;

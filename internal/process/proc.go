@@ -6,6 +6,7 @@ import (
 	"io"
 	"os/exec"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,7 +20,7 @@ const (
 )
 
 // managedProc is a single server process (authserver or worldserver) that
-// CoreForge spawned and owns.
+// CoreForge spawned and owns, attached to a console CoreForge controls.
 type managedProc struct {
 	target  Target
 	exePath string
@@ -27,11 +28,11 @@ type managedProc struct {
 	emit    events.Emitter
 	ring    *ringBuffer
 	batch   *lineBatcher
+	echoes  echoFilter
 	notify  func() // ask the manager to re-evaluate + emit status
 
 	mu      sync.Mutex
-	cmd     *exec.Cmd
-	stdin   io.WriteCloser
+	con     console
 	state   State
 	pid     int
 	startAt time.Time
@@ -56,83 +57,65 @@ func (p *managedProc) flushLines(lines []string) {
 	p.emit.Emit(events.EvtProcOutput, procOutputPayload{Target: string(p.target), Lines: lines})
 }
 
-// Start spawns the process. It is deliberately NOT tied to a context — closing
-// CoreForge must not kill a running game server.
+// Start spawns the process in a console CoreForge owns. The server lives only as
+// long as that console, so CoreForge stops its servers when it closes.
 func (p *managedProc) Start() error {
 	p.mu.Lock()
 	if p.state == StateRunning || p.state == StateStarting {
 		p.mu.Unlock()
 		return fmt.Errorf("%s server is already running", p.target)
 	}
-	p.state = StateStarting
-
-	cmd := exec.Command(p.exePath)
-	cmd.Dir = p.workDir
-	configureSysProcAttr(cmd)
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		p.state = StateStopped
-		p.mu.Unlock()
-		return err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		p.state = StateStopped
-		p.mu.Unlock()
-		return err
-	}
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		p.state = StateStopped
-		p.mu.Unlock()
-		return err
-	}
-
 	p.ring.clear()
-	if err := cmd.Start(); err != nil {
-		p.state = StateStopped
+	con, err := startConsole(p.exePath, p.workDir)
+	if err != nil {
 		p.mu.Unlock()
 		return fmt.Errorf("failed to start %s: %w", p.target, err)
 	}
-
-	p.cmd = cmd
-	p.stdin = stdin
-	p.pid = cmd.Process.Pid
+	p.con = con
+	p.pid = con.Pid()
 	p.startAt = time.Now()
 	p.state = StateRunning
 	done := make(chan struct{})
 	p.done = done
 	p.mu.Unlock()
 
-	var pumps sync.WaitGroup
-	pumps.Add(2)
-	go p.pump(stdout, &pumps)
-	go p.pump(stderr, &pumps)
-	go p.reap(done, &pumps)
+	drained := make(chan struct{})
+	go p.pump(con.Output(), drained)
+	go p.reap(con, done, drained)
 	if p.notify != nil {
 		p.notify()
 	}
 	return nil
 }
 
-func (p *managedProc) pump(r io.Reader, wg *sync.WaitGroup) {
-	defer wg.Done()
-	sc := bufio.NewScanner(r)
+func (p *managedProc) pump(out io.ReadCloser, drained chan<- struct{}) {
+	defer close(drained)
+	defer out.Close()
+	sc := bufio.NewScanner(out)
 	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	for sc.Scan() {
-		line := sc.Text()
-		p.ring.append(line)
-		p.batch.add(line)
+		text, keep := terminalLine(sc.Text())
+		if !keep {
+			continue
+		}
+		if line, keep := p.echoes.filter(text); keep {
+			p.record(line)
+		}
 	}
 }
 
-// reap waits for the pumps to hit EOF before calling Wait: Wait closes the pipes,
-// so calling it first can drop the final lines, which for a crash are the ones
-// that matter.
-func (p *managedProc) reap(done chan struct{}, pumps *sync.WaitGroup) {
-	pumps.Wait()
-	err := p.cmd.Wait()
+func (p *managedProc) record(line string) {
+	p.ring.append(line)
+	p.batch.add(line)
+}
+
+// reap waits for the exit, then closes the console: a console's output does not
+// end when its process exits, and closing it flushes the final lines, which for a
+// crash are the ones that matter.
+func (p *managedProc) reap(con console, done chan struct{}, drained <-chan struct{}) {
+	err := con.Wait()
+	_ = con.Close()
+	<-drained
 	p.batch.flushNow()
 
 	p.mu.Lock()
@@ -145,7 +128,7 @@ func (p *managedProc) reap(done chan struct{}, pumps *sync.WaitGroup) {
 		p.state = StateStopped
 	}
 	p.pid = 0
-	p.stdin = nil
+	p.con = nil
 	p.mu.Unlock()
 
 	close(done)
@@ -154,12 +137,13 @@ func (p *managedProc) reap(done chan struct{}, pumps *sync.WaitGroup) {
 	}
 }
 
-// Stop walks the graceful-stop ladder: stdin "quit" → polite taskkill → forced
-// taskkill. force=true skips straight to the forced kill, and also cuts short a
-// graceful stop that is already in progress but hanging.
+// Stop sends Ctrl+C, which the cores handle as a clean shutdown (players saved,
+// DB flushed), then force-kills if the server has not exited within the grace
+// period. force=true skips straight to the kill, and also cuts short a graceful
+// stop that is already in progress but hanging.
 func (p *managedProc) Stop(force bool) error {
 	p.mu.Lock()
-	pid, stdin, done := p.pid, p.stdin, p.done
+	pid, con, done := p.pid, p.con, p.done
 	switch {
 	case p.state == StateStopping && force:
 		p.mu.Unlock()
@@ -174,23 +158,9 @@ func (p *managedProc) Stop(force bool) error {
 		p.notify()
 	}
 
-	if force {
-		return p.kill(pid, done)
-	}
-	// 1. Clean shutdown: the worldserver console accepts "quit"; this flushes the
-	//    DB and releases log handles. authserver ignores it and falls through.
-	if stdin != nil {
-		_, _ = io.WriteString(stdin, "quit\r\n")
-		if p.await(done, graceTimeout) == nil {
-			return nil
-		}
-	}
-	// 2. Polite taskkill (WM_CLOSE-style, no /F).
-	_ = taskkill(pid, false)
-	if p.await(done, killTimeout) == nil {
+	if !force && con != nil && con.Interrupt() == nil && p.await(done, graceTimeout) == nil {
 		return nil
 	}
-	// 3. Forced kill — last resort.
 	return p.kill(pid, done)
 }
 
@@ -212,15 +182,24 @@ func (p *managedProc) await(done chan struct{}, timeout time.Duration) error {
 	}
 }
 
-// SendLine writes a console command to the process's stdin.
+// SendLine types a command into the server's console and records it in the
+// backlog. Control characters are stripped so input cannot, say, send Ctrl+C.
 func (p *managedProc) SendLine(s string) error {
+	cmd := strings.TrimSpace(cleanTerminalLine(s))
+	if cmd == "" {
+		return fmt.Errorf("empty command")
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.state != StateRunning || p.stdin == nil {
+	if p.state != StateRunning || p.con == nil {
 		return fmt.Errorf("%s server is not running", p.target)
 	}
-	_, err := io.WriteString(p.stdin, s+"\r\n")
-	return err
+	p.echoes.expect(cmd)
+	if _, err := io.WriteString(p.con.Input(), cmd+"\r"); err != nil {
+		return fmt.Errorf("send to %s console: %w", p.target, err)
+	}
+	p.record(commandEchoMarker + cmd)
+	return nil
 }
 
 func (p *managedProc) Info() ProcInfo {
@@ -234,6 +213,9 @@ func (p *managedProc) Info() ProcInfo {
 }
 
 func (p *managedProc) Backlog() []string { return p.ring.snapshot() }
+
+// ClearBacklog empties the stored console output.
+func (p *managedProc) ClearBacklog() { p.ring.clear() }
 
 // stopExternal terminates a server CoreForge did not spawn (an orphan from a
 // previous run, or one launched via the user's .bat scripts). We don't own its

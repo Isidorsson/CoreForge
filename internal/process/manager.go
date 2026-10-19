@@ -267,15 +267,15 @@ func (m *Manager) Restart(target string) error {
 	}
 }
 
+// errNoAuthConsole: authserver has no command console in TrinityCore or AzerothCore.
+var errNoAuthConsole = errors.New("authserver has no command console; send commands to the world server")
+
 func (m *Manager) SendConsole(target, cmd string) error {
-	auth, world := m.procs()
 	switch Target(target) {
 	case TargetAuth:
-		if auth == nil {
-			return errNotReady
-		}
-		return auth.SendLine(cmd)
+		return errNoAuthConsole
 	case TargetWorld:
+		_, world := m.procs()
 		if world == nil {
 			return errNotReady
 		}
@@ -283,6 +283,35 @@ func (m *Manager) SendConsole(target, cmd string) error {
 	default:
 		return fmt.Errorf("unknown target %q", target)
 	}
+}
+
+// ClearConsole empties a server's stored console output.
+func (m *Manager) ClearConsole(target string) error {
+	p, _ := m.targetProc(Target(target))
+	if p == nil {
+		return fmt.Errorf("unknown target %q", target)
+	}
+	p.ClearBacklog()
+	return nil
+}
+
+// StopManaged gracefully stops the servers CoreForge started, in parallel, and
+// leaves external ones alone. Used when CoreForge closes: its servers run in
+// consoles it owns and would otherwise be killed without saving.
+func (m *Manager) StopManaged() {
+	auth, world := m.procs()
+	var wg sync.WaitGroup
+	for _, p := range []*managedProc{auth, world} {
+		if p == nil {
+			continue
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = p.Stop(false)
+		}()
+	}
+	wg.Wait()
 }
 
 func (m *Manager) Backlog(target string) []string {

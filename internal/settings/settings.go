@@ -49,7 +49,6 @@ type Settings struct {
 	Installs           map[profile.CoreType]CoreInstall `json:"installs"`
 	LogTailLines       int                              `json:"logTailLines"`
 	ConfirmDestructive bool                             `json:"confirmDestructive"`
-	StopServersOnExit  bool                             `json:"stopServersOnExit"`
 	MetricsDB          *MetricsDBOverride               `json:"metricsDb,omitempty"`
 }
 
@@ -59,7 +58,6 @@ func Defaults() *Settings {
 		Installs:           map[profile.CoreType]CoreInstall{},
 		LogTailLines:       defaultTailLines,
 		ConfirmDestructive: true,
-		StopServersOnExit:  false,
 	}
 }
 

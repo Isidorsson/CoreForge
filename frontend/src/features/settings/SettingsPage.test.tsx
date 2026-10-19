@@ -18,7 +18,6 @@ const backend = vi.hoisted(() => ({
       installs: Record<string, Install>
       logTailLines: number
       confirmDestructive: boolean
-      stopServersOnExit: boolean
       metricsDb?: Override
     }
   },
@@ -47,8 +46,8 @@ vi.mock("@wails/go/main/App", () => ({
   GetMetricsDBInfo: vi.fn(async () => ({ host: "", port: "", user: "", authDb: "", worldDb: "", charDb: "", source: "auto", hasPass: false })),
   TestMetricsConnection: vi.fn(async () => ({})),
   SetMetricsDBOverride: vi.fn(async () => {}),
-  UpdateOptions: vi.fn(async (lines: number, confirm: boolean, stop: boolean) => {
-    Object.assign(backend.state.settings, { logTailLines: lines, confirmDestructive: confirm, stopServersOnExit: stop })
+  UpdateOptions: vi.fn(async (lines: number, confirm: boolean) => {
+    Object.assign(backend.state.settings, { logTailLines: lines, confirmDestructive: confirm })
   }),
 }))
 
@@ -72,7 +71,6 @@ beforeEach(() => {
       installs: { trinity: { type: "trinity", installDir: "C:\\tc", dockerComposeOverride: "a.yml", dockerContainerOverride: "db" } },
       logTailLines: 500,
       confirmDestructive: true,
-      stopServersOnExit: false,
       metricsDb: { ...emptyOverride, host: "10.0.0.1" },
     },
   }
@@ -173,7 +171,7 @@ describe("OptionsCard", () => {
     expect(App.UpdateOptions).not.toHaveBeenCalled()
     act(() => vi.advanceTimersByTime(1))
     expect(App.UpdateOptions).toHaveBeenCalledTimes(1)
-    expect(App.UpdateOptions).toHaveBeenCalledWith(750, true, false)
+    expect(App.UpdateOptions).toHaveBeenCalledWith(750, true)
   })
 
   it("does not save invalid or unchanged line counts", async () => {
@@ -218,7 +216,7 @@ describe("OptionsCard", () => {
     fireEvent.click(confirm)
     act(() => vi.advanceTimersByTime(1000))
     expect(App.UpdateOptions).toHaveBeenCalledTimes(1)
-    expect(App.UpdateOptions).toHaveBeenCalledWith(750, false, false)
+    expect(App.UpdateOptions).toHaveBeenCalledWith(750, false)
   })
 
   it("cancels a pending save on unmount", async () => {
@@ -231,14 +229,12 @@ describe("OptionsCard", () => {
     expect(App.UpdateOptions).not.toHaveBeenCalled()
   })
 
-  it("persists switch toggles with the other current options", async () => {
+  it("persists the switch with the other current options", async () => {
     renderSettings()
-    const [confirm, stop] = await screen.findAllByRole("switch")
+    const confirm = await screen.findByRole("switch")
     await userEvent.click(confirm)
-    expect(App.UpdateOptions).toHaveBeenLastCalledWith(500, false, false)
+    expect(App.UpdateOptions).toHaveBeenLastCalledWith(500, false)
     emitState()
     await waitFor(() => expect(confirm).toHaveAttribute("aria-checked", "false"))
-    await userEvent.click(stop)
-    expect(App.UpdateOptions).toHaveBeenLastCalledWith(500, false, true)
   })
 })

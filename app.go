@@ -61,9 +61,9 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) shutdown(ctx context.Context) {
 	a.Logs.StopAll()
 	a.Process.StopPoller()
-	if a.store.Get().StopServersOnExit {
-		_ = a.Process.StopAll(false)
-	}
+	// Managed servers run in consoles CoreForge owns and die with it, so stop them
+	// cleanly (players saved) rather than leave them to be killed.
+	a.Process.StopManaged()
 }
 
 // rebind resolves the active core and points every manager at it (or at an
@@ -189,13 +189,12 @@ func (a *App) SetDockerOverride(core, composePath, container string) error {
 }
 
 // UpdateOptions sets the general app options.
-func (a *App) UpdateOptions(logTailLines int, confirmDestructive, stopServersOnExit bool) error {
+func (a *App) UpdateOptions(logTailLines int, confirmDestructive bool) error {
 	if err := a.store.Update(func(s *settings.Settings) {
 		if logTailLines > 0 {
 			s.LogTailLines = logTailLines
 		}
 		s.ConfirmDestructive = confirmDestructive
-		s.StopServersOnExit = stopServersOnExit
 	}); err != nil {
 		return err
 	}

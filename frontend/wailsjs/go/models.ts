@@ -797,7 +797,6 @@ export namespace settings {
 	    installs: Record<string, CoreInstall>;
 	    logTailLines: number;
 	    confirmDestructive: boolean;
-	    stopServersOnExit: boolean;
 	    metricsDb?: MetricsDBOverride;
 	
 	    static createFrom(source: any = {}) {
@@ -810,7 +809,6 @@ export namespace settings {
 	        this.installs = this.convertValues(source["installs"], CoreInstall, true);
 	        this.logTailLines = source["logTailLines"];
 	        this.confirmDestructive = source["confirmDestructive"];
-	        this.stopServersOnExit = source["stopServersOnExit"];
 	        this.metricsDb = this.convertValues(source["metricsDb"], MetricsDBOverride);
 	    }
 	

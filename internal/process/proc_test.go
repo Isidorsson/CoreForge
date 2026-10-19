@@ -3,6 +3,7 @@ package process
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"strconv"
 	"testing"
 	"time"
@@ -13,13 +14,22 @@ import (
 const (
 	helperLinesEnv = "COREFORGE_HELPER_LINES"
 	helperHangEnv  = "COREFORGE_HELPER_HANG"
+	helperCLIEnv   = "COREFORGE_HELPER_CLI"
 )
 
 // TestMain doubles as a fake server binary: with helperLinesEnv set, the test
 // executable prints that many lines and exits non-zero, like a crashing worldserver;
-// with helperHangEnv set, it ignores stdin and never exits, like a stuck one.
+// with helperHangEnv set, it ignores input and Ctrl+C and never exits, like a stuck
+// one; with helperCLIEnv set, it runs a console command loop (see runCLIHelper).
 func TestMain(m *testing.M) {
+	if os.Getenv(helperCLIEnv) != "" {
+		runCLIHelper()
+	}
 	if os.Getenv(helperHangEnv) != "" {
+		// Subscribing without reading swallows Ctrl+C; signal.Ignore would not on
+		// Windows, where Go's default handler exits the process.
+		signal.Notify(make(chan os.Signal, 1), os.Interrupt)
+		fmt.Println("hung")
 		time.Sleep(time.Hour)
 		os.Exit(0)
 	}
@@ -77,6 +87,7 @@ func TestForceKillsAProcessStuckInGracefulStop(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = p.Stop(true) })
+	waitFor(t, func() bool { return backlogHas(p, "hung") })
 
 	graceful := make(chan error, 1)
 	go func() { graceful <- p.Stop(false) }()
@@ -93,4 +104,13 @@ func TestForceKillsAProcessStuckInGracefulStop(t *testing.T) {
 	case <-time.After(killTimeout):
 		t.Fatal("graceful stop kept waiting after the process was force-killed")
 	}
+}
+
+func backlogHas(p *managedProc, line string) bool {
+	for _, l := range p.Backlog() {
+		if l == line {
+			return true
+		}
+	}
+	return false
 }

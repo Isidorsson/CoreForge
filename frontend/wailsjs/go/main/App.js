@@ -18,6 +18,10 @@ export function BrowseForDirectory(arg1) {
   return window['go']['main']['App']['BrowseForDirectory'](arg1);
 }
 
+export function ClearConsole(arg1) {
+  return window['go']['main']['App']['ClearConsole'](arg1);
+}
+
 export function ClearCrashes() {
   return window['go']['main']['App']['ClearCrashes']();
 }
@@ -166,6 +170,6 @@ export function TestMetricsConnection() {
   return window['go']['main']['App']['TestMetricsConnection']();
 }
 
-export function UpdateOptions(arg1, arg2, arg3) {
-  return window['go']['main']['App']['UpdateOptions'](arg1, arg2, arg3);
+export function UpdateOptions(arg1, arg2) {
+  return window['go']['main']['App']['UpdateOptions'](arg1, arg2);
 }

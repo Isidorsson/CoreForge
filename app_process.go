@@ -19,5 +19,6 @@ func (a *App) StopAll(force bool) error   { return a.Process.StopAll(force) }
 func (a *App) RestartServer(target string) error    { return a.Process.Restart(target) }
 func (a *App) SendConsole(target, cmd string) error { return a.Process.SendConsole(target, cmd) }
 
-func (a *App) GetStatus() process.Status          { return a.Process.GetStatus() }
-func (a *App) GetBacklog(target string) []string  { return a.Process.Backlog(target) }
+func (a *App) GetStatus() process.Status         { return a.Process.GetStatus() }
+func (a *App) ClearConsole(target string) error  { return a.Process.ClearConsole(target) }
+func (a *App) GetBacklog(target string) []string { return a.Process.Backlog(target) }

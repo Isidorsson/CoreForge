@@ -170,3 +170,11 @@ func waitFor(t *testing.T, cond func() bool) {
 		time.Sleep(50 * time.Millisecond)
 	}
 }
+
+func TestSendConsoleRejectsAuthserver(t *testing.T) {
+	m := NewManager(events.Nop{}, 10)
+	m.Rebind(resolvedAt(`C:\cores\tc`))
+	if err := m.SendConsole("auth", "account create x y"); err != errNoAuthConsole {
+		t.Fatalf("err = %v, want errNoAuthConsole", err)
+	}
+}

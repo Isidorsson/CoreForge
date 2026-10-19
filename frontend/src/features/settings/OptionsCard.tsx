@@ -7,7 +7,7 @@ import type { main } from "@wails/go/models"
 
 const LINES_SAVE_DELAY_MS = 600
 
-type Options = { lines: number; confirm: boolean; stop: boolean }
+type Options = { lines: number; confirm: boolean }
 
 function parseLines(text: string): number | null {
   const n = Number(text)
@@ -30,11 +30,10 @@ export function OptionsCard({ settings }: { settings: main.AppState["settings"] 
   const current: Options = {
     lines: parseLines(lines) ?? stored,
     confirm: settings.confirmDestructive,
-    stop: settings.stopServersOnExit,
   }
 
   const persist = (next: Options) =>
-    runAction(() => UpdateOptions(next.lines, next.confirm, next.stop), "Save options").catch(() => {})
+    runAction(() => UpdateOptions(next.lines, next.confirm), "Save options").catch(() => {})
 
   const editLines = (text: string) => {
     window.clearTimeout(pendingSave.current)
@@ -45,7 +44,7 @@ export function OptionsCard({ settings }: { settings: main.AppState["settings"] 
   }
 
   // Saving a toggle also flushes a pending line-count edit, so the delayed save
-  // can't later overwrite the toggle with stale switch values.
+  // can't later overwrite the toggle with a stale switch value.
   const toggle = (patch: Partial<Options>) => {
     window.clearTimeout(pendingSave.current)
     persist({ ...current, ...patch })
@@ -78,13 +77,9 @@ export function OptionsCard({ settings }: { settings: main.AppState["settings"] 
           </div>
           <Switch checked={settings.confirmDestructive} onCheckedChange={(confirm) => toggle({ confirm })} />
         </div>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium">Stop servers when CoreForge closes</p>
-            <p className="text-xs text-muted-foreground">Gracefully stop managed processes on exit.</p>
-          </div>
-          <Switch checked={settings.stopServersOnExit} onCheckedChange={(stop) => toggle({ stop })} />
-        </div>
+        <p className="text-xs text-muted-foreground">
+          Servers started from CoreForge run in its console and are stopped cleanly when CoreForge closes.
+        </p>
       </CardContent>
     </Card>
   )
