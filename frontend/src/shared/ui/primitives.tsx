@@ -38,12 +38,22 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, loading, disabled, children, ...props }, ref) => (
     <button
       ref={ref}
-      className={cn(buttonVariants({ variant, size }), className)}
+      className={cn(buttonVariants({ variant, size }), loading && "relative", className)}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       {...props}
     >
-      {loading && <Loader2 className="size-4 animate-spin" />}
-      {children}
+      {loading ? (
+        <>
+          {/* Label stays in flow (invisible) so the button keeps its width while the spinner overlays it. */}
+          <span className="invisible inline-flex items-center gap-[inherit]">{children}</span>
+          <span className="absolute inset-0 flex items-center justify-center">
+            <Loader2 className="animate-spin" />
+          </span>
+        </>
+      ) : (
+        children
+      )}
     </button>
   ),
 )

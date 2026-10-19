@@ -44,7 +44,7 @@ function NodeShell({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-1 flex-col gap-3 rounded-md border border-border bg-card p-3">
+    <div className="flex min-w-0 flex-1 flex-col gap-3 rounded-md border border-border bg-card p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <div className="flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground ring-1 ring-border">
@@ -78,7 +78,10 @@ export function ProcNode({
   run: ReturnType<typeof useBusy>["run"]
 }) {
   const tone = procTone(info.state, info.external)
-  const running = info.state === "running" || info.state === "starting"
+  const live = info.state === "running" || info.state === "starting" || info.state === "stopping"
+  const stopping = info.state === "stopping"
+  // Force stays enabled throughout: it is the escape hatch for a stop that hangs.
+  const locked = stopping || (busy !== null && busy.startsWith(`${target}-`))
   const uptime = useUptime(info.startedAt)
   const stopFn = target === "auth" ? StopAuth : StopWorld
   const startFn = target === "auth" ? StartAuth : StartWorld
@@ -96,14 +99,14 @@ export function ProcNode({
         <MetaRow label="PID" value={info.pid ? String(info.pid) : "—"} />
         <MetaRow label="Uptime" value={info.state === "running" ? uptime : "—"} />
       </div>
-      <div className="flex flex-wrap gap-2">
-        {running ? (
+      <div className="grid grid-cols-3 gap-2">
+        {live ? (
           <>
             <Button
               size="sm"
               variant="secondary"
-              className="flex-1"
-              loading={busy === `${target}-stop`}
+              loading={busy === `${target}-stop` || stopping}
+              disabled={locked}
               onClick={() => run(`${target}-stop`, () => stopFn(false), `Stop ${title}`)}
             >
               <Square className="size-3.5" /> Stop
@@ -112,6 +115,7 @@ export function ProcNode({
               size="sm"
               variant="outline"
               loading={busy === `${target}-restart`}
+              disabled={locked}
               title={info.external ? "Stop the external process and relaunch it under CoreForge" : undefined}
               onClick={() =>
                 run(`${target}-restart`, () => RestartServer(target), `${info.external ? "Adopt" : "Restart"} ${title}`)
@@ -132,7 +136,7 @@ export function ProcNode({
         ) : (
           <Button
             size="sm"
-            className="flex-1"
+            className="col-span-3"
             loading={busy === `${target}-start`}
             onClick={() => run(`${target}-start`, () => startFn(), `Start ${title}`)}
           >
