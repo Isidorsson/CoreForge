@@ -65,7 +65,17 @@ internal/
   files/                  sandboxed browse / disk usage / cleanup / backup
   metrics/                read-only MySQL aggregates for the Metrics page
 frontend/                 React 19 + TS + Vite + Tailwind v4 SPA
+  wailsjs/                generated Go bindings (imported as @wails/*)
+  src/
+    app/                  entry, routes, shell (sidebar, command palette), global CSS
+    features/<page>/      one folder per page: the page plus its private parts
+    shared/ui|hooks|lib/  code used by two or more features
+    dev/                  browser-only Wails mock + loader showcase (dev builds only)
+docs/                     design and product notes
 ```
+
+New code goes in its feature folder. It moves to `shared/` only once a second
+feature needs it.
 
 The backend streams live data (status, console output, log lines) to the UI via
 Wails runtime events rather than polling. `internal/` packages depend only on an
