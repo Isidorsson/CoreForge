@@ -143,30 +143,55 @@ function BackupsModal({
   )
 }
 
-function ConfigEditor({ file }: { file: config.ConfigFile }) {
+/** Loads a config fresh from disk on every open (gcTime 0) and never refetches in
+ *  the background, so the body's edit state can't be overwritten mid-typing. The
+ *  body remounts only when the file is explicitly re-read (e.g. after a restore). */
+function ConfigEditor({ file, onDirtyChange }: { file: config.ConfigFile; onDirtyChange: (dirty: boolean) => void }) {
+  const { data: original, dataUpdatedAt } = useQuery({
+    queryKey: ["config", file.id],
+    queryFn: () => ReadConfig(file.id),
+    staleTime: Infinity,
+    gcTime: 0,
+  })
+
+  if (original === undefined) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <Spinner />
+      </div>
+    )
+  }
+  return <ConfigEditorBody key={dataUpdatedAt} file={file} original={original} onDirtyChange={onDirtyChange} />
+}
+
+function ConfigEditorBody({
+  file,
+  original,
+  onDirtyChange,
+}: {
+  file: config.ConfigFile
+  original: string
+  onDirtyChange: (dirty: boolean) => void
+}) {
   const queryClient = useQueryClient()
-  const [content, setContent] = useState("")
-  const [loaded, setLoaded] = useState("")
+  const [content, setContent] = useState(original)
+  const [loaded, setLoaded] = useState(original)
   const [query, setQuery] = useState("")
   const [matches, setMatches] = useState<config.Match[] | null>(null)
   const [showBackups, setShowBackups] = useState(false)
 
-  const { data: original, isLoading } = useQuery({ queryKey: ["config", file.id], queryFn: () => ReadConfig(file.id) })
-
-  useEffect(() => {
-    if (original === undefined) return
-    setContent(original)
-    setLoaded(original)
-    setMatches(null)
-    setQuery("")
-  }, [original, file.id])
-
   const dirty = content !== loaded
 
+  function edit(next: string) {
+    setContent(next)
+    onDirtyChange(next !== loaded)
+  }
+
   const save = useMutation({
-    mutationFn: () => SaveConfig(file.id, content),
-    onSuccess: () => {
-      setLoaded(content)
+    mutationFn: (text: string) => SaveConfig(file.id, text),
+    onSuccess: (_, text) => {
+      setLoaded(text)
+      onDirtyChange(content !== text)
       toast({ variant: "success", title: "Saved", description: file.name })
       queryClient.invalidateQueries({ queryKey: qk.configs })
       queryClient.invalidateQueries({ queryKey: qk.configBackups(file.id) })
@@ -179,12 +204,12 @@ function ConfigEditor({ file }: { file: config.ConfigFile }) {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
         e.preventDefault()
-        if (dirty && !save.isPending) save.mutate()
+        if (dirty && !save.isPending) save.mutate(content)
       }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [dirty, save])
+  }, [dirty, save, content])
 
   useEffect(() => {
     const q = query.trim()
@@ -201,6 +226,7 @@ function ConfigEditor({ file }: { file: config.ConfigFile }) {
   }, [query, file.id])
 
   function reload() {
+    onDirtyChange(false)
     queryClient.invalidateQueries({ queryKey: ["config", file.id] })
   }
 
@@ -213,10 +239,10 @@ function ConfigEditor({ file }: { file: config.ConfigFile }) {
           {dirty && <Badge variant="warning">unsaved</Badge>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Button size="sm" loading={save.isPending} disabled={!dirty} onClick={() => save.mutate()}>
+          <Button size="sm" loading={save.isPending} disabled={!dirty} onClick={() => save.mutate(content)}>
             <Save className="size-3.5" /> Save
           </Button>
-          <Button size="sm" variant="ghost" disabled={!dirty} onClick={() => setContent(loaded)}>
+          <Button size="sm" variant="ghost" disabled={!dirty} onClick={() => edit(loaded)}>
             <RotateCcw className="size-3.5" /> Revert
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowBackups(true)}>
@@ -249,18 +275,12 @@ function ConfigEditor({ file }: { file: config.ConfigFile }) {
         </div>
       )}
 
-      {isLoading ? (
-        <div className="flex flex-1 items-center justify-center">
-          <Spinner />
-        </div>
-      ) : (
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          spellCheck={false}
-          className="min-h-0 flex-1 resize-none whitespace-pre bg-console font-mono text-xs leading-relaxed"
-        />
-      )}
+      <Textarea
+        value={content}
+        onChange={(e) => edit(e.target.value)}
+        spellCheck={false}
+        className="min-h-0 flex-1 resize-none whitespace-pre bg-console font-mono text-xs leading-relaxed"
+      />
 
       {showBackups && (
         <BackupsModal open={showBackups} fileId={file.id} onClose={() => setShowBackups(false)} onRestored={reload} />
@@ -273,6 +293,23 @@ export function Config() {
   const { data: state } = useAppState()
   const { data: files } = useQuery({ queryKey: qk.configs, queryFn: ListConfigs })
   const [selected, setSelected] = useState<config.ConfigFile | null>(null)
+  const [dirty, setDirty] = useState(false)
+  const [pendingSwitch, setPendingSwitch] = useState<config.ConfigFile | null>(null)
+
+  function select(f: config.ConfigFile) {
+    if (f.id === selected?.id) return
+    if (dirty) {
+      setPendingSwitch(f)
+      return
+    }
+    open(f)
+  }
+
+  function open(f: config.ConfigFile) {
+    setSelected(f)
+    setDirty(false)
+    setPendingSwitch(null)
+  }
 
   if (state && !state.configured) return <NotConfigured />
 
@@ -282,14 +319,14 @@ export function Config() {
       <div className="flex min-h-0 flex-1 gap-4">
         <Card className="w-64 shrink-0 overflow-auto p-2">
           {files && files.length > 0 ? (
-            <ConfigList files={files} selectedId={selected?.id ?? null} onSelect={setSelected} />
+            <ConfigList files={files} selectedId={selected?.id ?? null} onSelect={select} />
           ) : (
             <EmptyState icon={FileCog} title="No config files" />
           )}
         </Card>
         <Card className="flex min-h-0 flex-1 flex-col p-4">
           {selected ? (
-            <ConfigEditor key={selected.id} file={selected} />
+            <ConfigEditor key={selected.id} file={selected} onDirtyChange={setDirty} />
           ) : (
             <div className="flex flex-1 items-center justify-center">
               <EmptyState icon={FileCog} title="Select a config file" hint="Pick a file from the list to start editing." />
@@ -297,6 +334,16 @@ export function Config() {
           )}
         </Card>
       </div>
+      <ConfirmDialog
+        open={pendingSwitch !== null}
+        title="Discard unsaved changes?"
+        description={`Your edits to ${selected?.name ?? "this file"} will be lost.`}
+        confirmLabel="Discard"
+        cancelLabel="Keep editing"
+        confirmVariant="destructive"
+        onConfirm={() => pendingSwitch && open(pendingSwitch)}
+        onClose={() => setPendingSwitch(null)}
+      />
     </div>
   )
 }
