@@ -18,8 +18,9 @@ TypeScript + Tailwind v4** frontend.
   and detection of servers started outside the app. A server launched from your
   own `.bat` scripts is shown as external: CoreForge will not double-start it,
   can stop it, and can **Adopt** it (relaunch under CoreForge to get its console).
-- **Live console** — stream `worldserver`/`authserver` stdout into the app and
-  send console commands back to the running server.
+- **Live console** — servers run in a Windows pseudo console (ConPTY), so
+  `worldserver` commands and their replies work like a real terminal. Output is
+  color-highlighted, sent commands are echoed, and ↑/↓ recall history.
 - **Log management** — list every log the active core defines, live-tail, clear
   (truncate-in-place, safe while running), and archive to a timestamped zip.
 - **Config editor** — edit `.conf` files with search; every save is backed up
@@ -131,14 +132,18 @@ wails build -nsis -webview2 embed # installer + bundled WebView2 runtime
 
 - Logs are **truncated in place**, never deleted, so a running server's open log
   handle is never broken.
-- Stopping a server walks a graceful ladder: console `quit` → polite `taskkill`
-  → forced kill (only as a last resort).
+- Stopping a server sends Ctrl+C, which the cores treat as a clean shutdown
+  (players saved), and force-kills only if it has not exited after a grace period.
 - Every file path from the UI passes through a single path-traversal guard
   (`files.SafeJoin`) that keeps operations inside the install directory.
-- Closing CoreForge does **not** stop your servers by default (they run
-  headless); enable "Stop servers on exit" in Settings if you want that.
+- Servers started from CoreForge live in its console, so closing CoreForge stops
+  them cleanly first. Servers started outside CoreForge are left running.
 - Saving settings never drops a running server's handle; changing the active
   core or its install directory is refused while a server is running.
 - Metrics queries are strictly read-only. A manual metrics DB override is stored
   in plain text in `%APPDATA%/CoreForge/settings.json`, like the
   `worldserver.conf` it mirrors.
+
+## License
+
+[MIT](LICENSE) © Isidorsson
